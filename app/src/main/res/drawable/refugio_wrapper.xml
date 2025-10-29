@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+    OPCIONAL: Si necesitas un color de fondo específico para el ícono
+    que sea diferente del windowSplashScreenBackground, puedes añadirlo aquí.
+    Si no, puedes eliminar este <item>.
+    <item android:drawable="@color/tu_color_de_fondo_para_el_icono" />
+    -->
+
+    <!--
+    El Ícono Principal:
+    Usa 'gravity="center"' para centrarlo.
+    Usa 'width' y 'height' para definir su tamaño dentro del área segura.
+    Un buen punto de partida es 96dp o 128dp.
+    -->
+    <item
+        android:width="48dp"
+        android:height="48dp"
+        android:gravity="center">
+        <bitmap
+            android:src="@drawable/refugio_open" /> <!-- ¡Usa tu imagen PNG/JPG aquí! -->
+    </item>
+
+</layer-list>
