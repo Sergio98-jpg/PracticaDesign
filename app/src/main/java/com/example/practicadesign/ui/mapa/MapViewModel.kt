@@ -167,11 +167,14 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        mapRepository.closeWebSocket()
     }
     // --- FIN DE LA LÓGICA DE UBICACIÓN ---
 
     init {
         loadMapDataFromBackend()
+        // 2. ✅ Comienza a escuchar las actualizaciones del WebSocket
+        listenForRealTimeUpdates()
     }
 
 
@@ -338,6 +341,22 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 // Aquí manejas los errores de red (ej. no hay internet)
                 _uiState.update { it.copy(isLoading = false /*, podrías tener un errorState */) }
                 // Log.e("MapViewModel", "Error al cargar datos del mapa", e)
+            }
+        }
+    }
+
+
+    private fun listenForRealTimeUpdates() {
+        viewModelScope.launch {
+            mapRepository.getRiskZoneUpdates().collect { newRiskZone ->
+                // 3. ✅ Se ha recibido una nueva RiskZone desde el WebSocket
+                _uiState.update { currentState ->
+                    // Lógica para añadir o actualizar la zona de riesgo en la lista
+                    val updatedZones = currentState.riskZones.filterNot { it.id == newRiskZone.id } + newRiskZone
+
+                    // Actualiza el estado de la UI
+                    currentState.copy(riskZones = updatedZones)
+                }
             }
         }
     }

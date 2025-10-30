@@ -67,6 +67,14 @@ dependencies {
     implementation("com.google.maps.android:maps-utils-ktx:3.4.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation(libs.androidx.ui.text)
+    implementation("io.ktor:ktor-client-core:2.3.11")
+//    implementation("io.ktor:ktor-client-android:2.3.11")
+    implementation("io.ktor:ktor-client-websockets:2.3.11")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.11") // Para JSON
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.11") // Para JSON
+    implementation("io.ktor:ktor-client-cio:2.3.11")
+
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

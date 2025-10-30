@@ -101,7 +101,12 @@ Row(
         active = currentRoute == Screen.Mapa.route, // Activo si la ruta actual es la del mapa
         label = "Mapa",
         icon = Lucide.Map,
-        onClick = { navController.navigate(Screen.Mapa.route) } // Navega al mapa
+        onClick = { navController.navigate(Screen.Mapa.route){
+            // ✅ Evita crear una nueva copia del mapa si ya está en la pila
+            launchSingleTop = true
+            // ✅ Restaura el estado al volver a esta pantalla
+            restoreState = true
+        } } // Navega al mapa
     )
 
     // Ítem de Alertas (Supongamos que es solo para usuarios logueados)
@@ -120,7 +125,12 @@ Row(
         active = currentRoute == Screen.Shelters.route,
         label = "Refugios",
         icon = Lucide.House,
-        onClick = { navController.navigate(Screen.Shelters.route) }
+        onClick = { navController.navigate(Screen.Shelters.route){
+            // ✅ Evita crear una nueva copia del mapa si ya está en la pila
+            launchSingleTop = true
+            // ✅ Restaura el estado al volver a esta pantalla
+            restoreState = true
+        } }
     )
 
     // Ítem de Reporte (El que inicia el login si no se ha hecho)

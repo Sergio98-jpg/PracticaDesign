@@ -28,6 +28,7 @@ import androidx.compose.animation.fadeOut // ✅ Importar
 import androidx.compose.animation.slideInHorizontally // ✅ Importar
 import androidx.compose.animation.slideOutHorizontally // ✅ Importar
 import androidx.compose.animation.core.tween // ✅ Importar
+import com.example.practicadesign.ui.refugios.SheltersScreen
 
 @Composable
 fun AppNavigation() {
@@ -92,12 +93,7 @@ fun AppNavigation() {
                 enterTransition = { fadeIn(animationSpec = fadeSpec) },
                 exitTransition = { fadeOut(animationSpec = fadeSpec) }
             ) {
-                LoginScreen(
-                    onLoginSuccess = { newRole ->
-                        authViewModel.onLoginSuccess(newRole)
-                        navController.popBackStack() // Cierra el login y vuelve al mapa
-                    }
-                )
+                SheltersScreen()
             }
 
             // --- Opción 2: Desplazamiento Horizontal para Login ---

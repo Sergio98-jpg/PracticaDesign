@@ -11,8 +11,17 @@ import kotlinx.coroutines.launch
 
 data class SheltersUiState(
     val isLoading: Boolean = true,
-    val shelters: List<Shelter> = emptyList()
-)
+    val shelters: List<Shelter> = emptyList(),
+    val selectedFilter: ShelterFilter = ShelterFilter.ALL
+) {
+    val filteredShelters: List<Shelter>
+        get() = when (selectedFilter) {
+            ShelterFilter.ALL -> shelters
+            ShelterFilter.OPEN -> shelters.filter { it.isOpen }
+            ShelterFilter.NEAREST -> shelters.sortedBy { it.position.latitude } // simulado
+            ShelterFilter.AVAILABLE -> shelters.filter { it.currentOccupancy < it.capacity }
+        }
+}
 
 class SheltersViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(SheltersUiState())
@@ -35,6 +44,13 @@ class SheltersViewModel : ViewModel() {
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false) }
             }
+        }
+    }
+
+    fun onFilterChange(filter: ShelterFilter) {
+        // Para actualizar el estado de un StateFlow, se usa .update()
+        _uiState.update { currentState ->
+            currentState.copy(selectedFilter = filter)
         }
     }
 }

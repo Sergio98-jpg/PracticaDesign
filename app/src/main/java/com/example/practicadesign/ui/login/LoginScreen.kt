@@ -3,6 +3,7 @@ package com.example.practicadesign.ui.login
 import androidx.compose.animation.*
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -102,9 +103,9 @@ fun LoginScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .shadow(4.dp, RoundedCornerShape(16.dp))
                     .clip(RoundedCornerShape(16.dp))
                     .background(Color.White)
-                    .shadow(4.dp, RoundedCornerShape(16.dp))
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -115,36 +116,36 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // --- Animated Content (slide between login/register) ---
-            Card(
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 8.dp)
-                .animateContentSize(animationSpec = tween(300, easing = LinearOutSlowInEasing)),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .shadow(8.dp, RoundedCornerShape(24.dp)) // ✅ sombra real recortada
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.White)
+                    .animateContentSize(animationSpec = tween(300, easing = LinearOutSlowInEasing))
             ) {
                 AnimatedContent(
                     targetState = isLogin,
                     transitionSpec = {
                         if (targetState) {
-                            slideInHorizontally(
-                                animationSpec = tween(300),
-                                initialOffsetX = { fullWidth: Int -> fullWidth }
-                            ) + fadeIn() with
-                                    slideOutHorizontally(
-                                        animationSpec = tween(300),
-                                        targetOffsetX = { fullWidth: Int -> -fullWidth }
-                                    ) + fadeOut()
-                        } else {
-                            slideInHorizontally(
+                            (slideInHorizontally(
                                 animationSpec = tween(300),
                                 initialOffsetX = { fullWidth: Int -> -fullWidth }
-                            ) + fadeIn() with
-                                    slideOutHorizontally(
-                                        animationSpec = tween(300),
-                                        targetOffsetX = { fullWidth: Int -> fullWidth }
-                                    ) + fadeOut()
+                            ) + fadeIn()).togetherWith(
+                                slideOutHorizontally(
+                                                                animationSpec = tween(300),
+                                                                targetOffsetX = { fullWidth: Int -> fullWidth }
+                                                            ) + fadeOut())
+                        } else {
+                            (slideInHorizontally(
+                                animationSpec = tween(300),
+                                initialOffsetX = { fullWidth: Int -> fullWidth }
+                            ) + fadeIn()).togetherWith(
+                                slideOutHorizontally(
+                                                                animationSpec = tween(300),
+                                                                targetOffsetX = { fullWidth: Int -> -fullWidth }
+                                                            ) + fadeOut())
                         }
                     },
                     label = "FormTransition"

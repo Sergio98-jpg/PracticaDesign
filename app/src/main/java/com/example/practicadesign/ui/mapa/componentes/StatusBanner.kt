@@ -52,6 +52,9 @@ import com.composables.icons.lucide.Siren
 //Zona de riesgo
 import com.google.android.gms.maps.model.LatLng
 
+//Web socket
+import kotlinx.serialization.Serializable
+
 
 /* -------------------------
    Estado del Banner
@@ -65,13 +68,22 @@ enum class BannerState {
 /* -------------------------
    Zona de riesgo (Estructura)
    ------------------------- */
-
+@Serializable
 data class RiskZone(
     val id: String,
     val area: List<LatLng>, // La forma de la zona (una lista de coordenadas)
     val state: BannerState  // El tipo de zona (Warning o Danger)
 )
 
+@Serializable
+data class LatLngDto(val lat: Double, val lng: Double)
+
+@Serializable
+data class RiskZoneDto(
+    val id: String,
+    val area: List<LatLngDto>,
+    val state: BannerState
+)
 /* -------------------------
    Refugios (Estructura)
    ------------------------- */
@@ -81,7 +93,6 @@ data class Shelter(
     val position: LatLng,
     val name: String,
     val isOpen: Boolean,
-    // ✅ Añadimos más campos
     val address: String,
     val capacity: Int,
     val currentOccupancy: Int

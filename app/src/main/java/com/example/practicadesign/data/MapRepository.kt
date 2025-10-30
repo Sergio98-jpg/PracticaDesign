@@ -7,10 +7,12 @@ import com.example.practicadesign.ui.mapa.componentes.Shelter
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.Flow
 
 // En una app real, aquí inyectarías tu ApiService de Retrofit
 class MapRepository() {
 
+    private val webSocketListener = RiskZoneWebSocketListener()
     // El ViewModel llamará a esta función para obtener TODOS los datos del mapa
     suspend fun getMapData(): MapDataResult {
         // Mueve la operación de red fuera del hilo principal para no bloquear la UI
@@ -31,6 +33,15 @@ class MapRepository() {
         }
     }
 
+    // ✅ NUEVA FUNCIÓN: Devuelve un Flow que emite actualizaciones de RiskZone
+    fun getRiskZoneUpdates(): Flow<RiskZone> {
+        return webSocketListener.listenForRiskZoneUpdates()
+    }
+
+    // Función para limpiar cuando el ViewModel se destruya
+    fun closeWebSocket() {
+        webSocketListener.close()
+    }
     // --- MÉTODOS PRIVADOS PARA DATOS SIMULADOS ---
     // (Estos métodos los borrarás cuando tu backend esté listo)
 
