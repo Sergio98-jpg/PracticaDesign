@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -72,7 +73,16 @@ dependencies {
     implementation("io.ktor:ktor-client-websockets:2.3.11")
     implementation("io.ktor:ktor-client-content-negotiation:2.3.11") // Para JSON
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.11") // Para JSON
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("io.ktor:ktor-client-cio:2.3.11")
+
+    // Motor Android para Ktor
+    implementation("io.ktor:ktor-client-android:2.3.11")
+    // Plugin de Logging
+    implementation("io.ktor:ktor-client-logging:2.3.11")
+    // Serialización de Kotlin
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+
 
 
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,7 +35,7 @@ fun StatsRow(modifier: Modifier = Modifier) {
     ) {
         StatCard(number = "1", label = "Alerta activa", type = StatType.ALERT, modifier = Modifier.weight(1f))
         StatCard(number = "5", label = "Refugios cerca", type = StatType.SHELTER, modifier = Modifier.weight(1f))
-        StatCard(number = "12", label = "Zonas seguras", type = StatType.SAFE, modifier = Modifier.weight(1f))
+     //   StatCard(number = "12", label = "Zonas seguras", type = StatType.SAFE, modifier = Modifier.weight(1f))
     }
 }
 
@@ -52,10 +53,11 @@ fun StatCard(number: String, label: String, type: StatType, modifier: Modifier =
         modifier = modifier
             .shadow(8.dp, RoundedCornerShape(16.dp))
             .background(Color.White, shape = RoundedCornerShape(16.dp))
-            .padding(vertical = 12.dp),
+            .padding(vertical = 8.dp).size(height = 50.dp, width = 10.dp)
+        ,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(number, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = color)
-        Text(label, fontSize = 12.sp, color = Color(0xFF64748B), modifier = Modifier.padding(top = 4.dp), maxLines = 2)
+        Text(number, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = color)
+        Text(label, fontSize = 14.sp, color = Color(0xFF64748B), maxLines = 2)
     }
 }

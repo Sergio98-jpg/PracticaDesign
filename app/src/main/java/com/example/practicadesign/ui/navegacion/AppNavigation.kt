@@ -29,13 +29,15 @@ import androidx.compose.animation.slideInHorizontally // ✅ Importar
 import androidx.compose.animation.slideOutHorizontally // ✅ Importar
 import androidx.compose.animation.core.tween // ✅ Importar
 import com.example.practicadesign.ui.refugios.SheltersScreen
+import com.example.practicadesign.ui.reportes.ReportScreen
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     // ViewModel para compartir el estado de login entre pantallas
     val authViewModel: AuthViewModel = viewModel()
-    val userRole by authViewModel.userRole.collectAsState() // Observa el rol
+  //  val userRole by authViewModel.userRole.collectAsState() // Observa el rol
+    val userRole: String? = "admin"
 
     // Usamos un Scaffold como contenedor principal que muestra la barra de navegación
     Scaffold(
@@ -94,6 +96,26 @@ fun AppNavigation() {
                 exitTransition = { fadeOut(animationSpec = fadeSpec) }
             ) {
                 SheltersScreen()
+            }
+
+            composable(
+                route = Screen.Login.route,
+                enterTransition = { fadeIn(animationSpec = fadeSpec) },
+                exitTransition = { fadeOut(animationSpec = fadeSpec) }
+            ) {
+                LoginScreen()
+            }
+
+            composable(
+                Screen.Report.route,
+                enterTransition = { fadeIn(animationSpec = fadeSpec) },
+                exitTransition = { fadeOut(animationSpec = fadeSpec) }
+            ) {
+                ReportScreen(onClose = {
+                    // Define qué hacer cuando el reporte se envía o se cierra.
+                    // Por ejemplo, volver al mapa.
+                    navController.popBackStack()
+                })
             }
 
             // --- Opción 2: Desplazamiento Horizontal para Login ---

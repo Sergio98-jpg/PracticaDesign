@@ -33,12 +33,12 @@ import com.composables.icons.lucide.CircleX
 import com.composables.icons.lucide.House
 import com.composables.icons.lucide.Lucide
 import com.example.practicadesign.data.MapRepository
-import com.example.practicadesign.ui.mapa.componentes.Shelter
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.example.practicadesign.ui.refugios.componentes.*
 
 
 /* -------------------------------------------------
@@ -149,205 +149,12 @@ fun SheltersScreen(
     }
 }
 
-@Composable
-fun QuickFiltersRow(
-    selectedFilter: ShelterFilter,
-    onFilterSelected: (ShelterFilter) -> Unit
-) {
-    val filters = listOf(
-        ShelterFilter.ALL to "Todos",
-        ShelterFilter.OPEN to "Abiertos",
-        ShelterFilter.NEAREST to "Más cercanos",
-        ShelterFilter.AVAILABLE to "Con espacio"
-    )
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp)
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        filters.forEach { (filter, label) ->
-            val active = selectedFilter == filter
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(if (active) Color(0xFF0891B2) else Color.White)
-                    .border(
-                        width = 2.dp,
-                        color = if (active) Color(0xFF0891B2) else Color(0xFFE2E8F0),
-                        shape = RoundedCornerShape(20.dp)
-                    )
-                    .clickable { onFilterSelected(filter) }
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = label,
-                    color = if (active) Color.White else Color(0xFF475569),
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-        }
-    }
-}
-
-/* -------------------------------------------------
-   Refugio compacto
-------------------------------------------------- */
-@Composable
-fun ShelterItem(
-    shelter: Shelter,
-    expanded: Boolean,
-    onClick: () -> Unit
-) {
-
-    // ✅ 3. Crea el estado de la animación de rotación
-    val rotationAngle by animateFloatAsState(
-        targetValue = if (expanded) 90f else 0f, // Gira a 90 grados si está expandido
-        animationSpec = tween(durationMillis = 300), // Sincroniza la duración
-        label = "rotationAnimation"
-    )
 
 
-    val (bgColor, textColor) = when {
-        !shelter.isOpen -> Color(0xFFFEF2F2) to Color(0xFFDC2626)
-        shelter.currentOccupancy >= shelter.capacity -> Color(0xFFFEF3C7) to Color(0xFFD97706)
-        else -> Color(0xFFD1FAE5) to Color(0xFF059669)
-    }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
-            .clickable { onClick() }
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Ícono estado
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(bgColor),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Lucide.House,
-                contentDescription = null,
-                tint = textColor
-            )
-        }
 
-        Spacer(Modifier.width(12.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = shelter.name,
-                color = Color(0xFF0F172A),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = shelter.address,
-                color = Color(0xFF64748B),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "${shelter.currentOccupancy}/${shelter.capacity} • " +
-                        if (!shelter.isOpen) "Cerrado" else if (shelter.currentOccupancy >= shelter.capacity) "Lleno" else "Abierto",
-                color = textColor,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
 
-        Icon(
-            imageVector = Lucide.ChevronRight,
-            contentDescription = "Expandir/Colapsar",
-            modifier = Modifier.rotate(rotationAngle), // ¡La magia sucede aquí!
-            tint = Color(0xFF475569)
-        )
-    }
-}
-
-/* -------------------------------------------------
-   Detalle expandible
-------------------------------------------------- */
-@Composable
-fun ShelterDetailCard(
-    shelter: Shelter,
-    onClose: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = shelter.name,
-                    color = Color(0xFF0F172A),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onClose) {
-                    Icon(Lucide.CircleX, contentDescription = "Cerrar", tint = Color(0xFF64748B))
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-            Text(shelter.address, color = Color(0xFF475569), style = MaterialTheme.typography.bodySmall)
-
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                DetailStat("Capacidad", "${shelter.currentOccupancy}/${shelter.capacity}")
-                DetailStat("Estado", if (shelter.isOpen) "Abierto" else "Cerrado")
-            }
-
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { /* TODO: abrir mapa */ },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0891B2))
-                ) {
-                    Text("Cómo llegar", color = Color.White)
-                }
-
-                OutlinedButton(
-                    onClick = { /* TODO: llamada */ },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Llamar")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun RowScope.DetailStat(label: String, value: String) {
-    Column(
-        modifier = Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFF8FAFC))
-            .padding(12.dp)
-    ) {
-        Text(label, color = Color(0xFF64748B), style = MaterialTheme.typography.bodySmall)
-        Text(value, color = Color(0xFF0F172A), style = MaterialTheme.typography.titleSmall)
-    }
-}
-
-/* -------------------------------------------------
-   ENUM DE FILTROS Y VIEWMODEL
-------------------------------------------------- */
-enum class ShelterFilter { ALL, OPEN, NEAREST, AVAILABLE }
 
 /*
 data class SheltersUiState(

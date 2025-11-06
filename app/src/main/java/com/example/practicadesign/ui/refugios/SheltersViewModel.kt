@@ -3,11 +3,12 @@ package com.example.practicadesign.ui.refugios
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.practicadesign.data.MapRepository // Reutilizamos el repo del mapa!
-import com.example.practicadesign.ui.mapa.componentes.Shelter
+import com.example.practicadesign.data.Shelter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.example.practicadesign.ui.refugios.componentes.ShelterFilter
 
 data class SheltersUiState(
     val isLoading: Boolean = true,
@@ -38,10 +39,18 @@ class SheltersViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
-                // Obtenemos todos los datos, pero solo usamos los refugios
-                val mapData = mapRepository.getMapData()
-                _uiState.update { it.copy(isLoading = false, shelters = mapData.shelters) }
+                // Recolectamos el Flow de refugios del repositorio
+                mapRepository.getShelters().collect { sheltersFromBackend ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            shelters = sheltersFromBackend
+                        )
+                    }
+                }
             } catch (e: Exception) {
+                // En caso de error, dejamos de cargar y mantenemos lista vacía
+                e.printStackTrace()
                 _uiState.update { it.copy(isLoading = false) }
             }
         }

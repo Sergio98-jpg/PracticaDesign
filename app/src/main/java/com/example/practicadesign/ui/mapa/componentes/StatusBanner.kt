@@ -67,7 +67,7 @@ enum class BannerState {
 
 /* -------------------------
    Zona de riesgo (Estructura)
-   ------------------------- */
+   ------------------------- *//*
 @Serializable
 data class RiskZone(
     val id: String,
@@ -83,10 +83,10 @@ data class RiskZoneDto(
     val id: String,
     val area: List<LatLngDto>,
     val state: BannerState
-)
+)*/
 /* -------------------------
    Refugios (Estructura)
-   ------------------------- */
+   ------------------------- *//*
 
 data class Shelter(
     val id: String,
@@ -96,16 +96,16 @@ data class Shelter(
     val address: String,
     val capacity: Int,
     val currentOccupancy: Int
-)
+)*/
 
 /* -------------------------
    Calles (Estructura)
-   ------------------------- */
+   ------------------------- *//*
 
 data class FloodedStreet(
     val id: String,
     val path: List<LatLng> // El camino de la calle
-)
+)*/
 /* -------------------------
    Status Banner
    ------------------------- */

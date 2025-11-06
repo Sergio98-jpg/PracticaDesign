@@ -7,6 +7,7 @@ sealed class Screen(val route: String) {
     object Login : Screen("login_screen")
     object Mapa : Screen("mapa_screen")
     object Shelters : Screen("shelters_screen")
+    object Report : Screen("report_screen")
     // Aquí añadirías Alertas, Noticias, etc.
 
 }

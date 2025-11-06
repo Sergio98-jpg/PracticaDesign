@@ -99,7 +99,7 @@ fun PracticaDesignApp() {
     // Por ejemplo: viewModel.startInitialLoad()
     // El `uiState` estaría en ese ViewModel, expuesto a través de un StateFlow.
     val uiState by produceState<Boolean>(initialValue = false) {
-        delay(5000) // Aumenté el tiempo para que puedas ver mejor tu splash
+        delay(2000) // Aumenté el tiempo para que puedas ver mejor tu splash
         value = true
     }
 

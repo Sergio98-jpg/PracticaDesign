@@ -36,6 +36,8 @@ import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.MapPin
 import com.composables.icons.lucide.Route
 import com.composables.icons.lucide.Users
+import com.example.practicadesign.data.RiskZone
+import com.example.practicadesign.data.Shelter
 import com.google.android.gms.maps.model.LatLng
 
 @Preview(showBackground = true, name = "Zona de Peligro")
@@ -54,7 +56,7 @@ fun PreviewZoneRiskInfoContentDanger() {
         modifier = Modifier.fillMaxWidth()
     )
 }
-
+/*
 @Preview(showBackground = true, name = "Zona en Advertencia")
 @Composable
 fun PreviewZoneRiskInfoContentWarning() {
@@ -89,7 +91,7 @@ fun PreviewShelterInfoContentOpen() {
         shelter = sampleShelter,
         modifier = Modifier.fillMaxWidth()
     )
-}
+}*/
 /*
 @Preview(showBackground = true, name = "Refugio Cerrado")
 @Composable

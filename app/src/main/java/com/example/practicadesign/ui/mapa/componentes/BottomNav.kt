@@ -58,12 +58,30 @@ import com.example.practicadesign.ui.navegacion.Screen
 /* -------------------------
    Bottom Navigation
    ------------------------- */
-@Preview(showBackground = true)
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.compose.rememberNavController
+
+@Preview(showBackground = true, name = "BottomNav - Usuario Invitado")
 @Composable
-fun PreviewBottomNav() {
+fun PreviewBottomNavGuest() {
     BottomNav(
-        navController = TODO(),
-        userRole = TODO()
+        // Para la preview, no necesitas un modifier especial
+        modifier = Modifier,
+        // ✅ Crea un NavController falso para la preview
+        navController = rememberNavController(),
+        // ✅ Simula un usuario que NO ha iniciado sesión
+        userRole = null
+    )
+}
+
+@Preview(showBackground = true, name = "BottomNav - Usuario Logueado")
+@Composable
+fun PreviewBottomNavLoggedIn() {
+    BottomNav(
+        modifier = Modifier,
+        navController = rememberNavController(),
+        // ✅ Simula un usuario que SÍ ha iniciado sesión
+        userRole = "user"
     )
 }
 //@Composable
@@ -143,20 +161,25 @@ Row(
             if (userRole == null) {
                 navController.navigate(Screen.Login.route)
             } else {
-                // navController.navigate(Screen.CreateReport.route) // Futura pantalla
+                 navController.navigate(Screen.Report.route) // Futura pantalla
             }
         }
     )
 
     // Ítem de Perfil (Supongamos que es solo para usuarios logueados)
-    if (userRole != null) {
+//    if (userRole != null) {
         BottomNavItem(
-            active = false,//currentRoute == Screen.Profile.route,
+            active = currentRoute == Screen.Login.route,
             label = "Perfil",
             icon = Lucide.User,
-            onClick = { /*navController.navigate(Screen.Profile.route) */}
+            onClick = { navController.navigate(Screen.Login.route){
+                // ✅ Evita crear una nueva copia del mapa si ya está en la pila
+                launchSingleTop = true
+                // ✅ Restaura el estado al volver a esta pantalla
+                restoreState = true
+            } }
         )
-    }
+ //   }
     }
 }
 

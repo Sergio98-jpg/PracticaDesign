@@ -98,8 +98,10 @@ import com.composables.icons.lucide.Users
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.mutableStateOf
@@ -119,6 +121,10 @@ import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.House
 import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.TriangleAlert
+
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import com.example.practicadesign.data.toGoogleLatLng
 
 @Composable
 private fun bitmapDescriptorFromVector(
@@ -154,12 +160,26 @@ fun MapScreen(
 ) {
     val uiState by mapViewModel.uiState.collectAsState()
     val context = LocalContext.current
-
+    val snackbarHostState = remember { SnackbarHostState() }
     // --- ✅ 1. LÓGICA PARA PERMISOS Y UBICACIÓN ---
     val locationPermissions = arrayOf(
         Manifest.permission.ACCESS_COARSE_LOCATION,
         Manifest.permission.ACCESS_FINE_LOCATION
     )
+
+    // ✅ 2. Usa LaunchedEffect para reaccionar a los cambios de error
+    LaunchedEffect(uiState.networkError) {
+        if (uiState.networkError != null) {
+            snackbarHostState.showSnackbar(
+                message = uiState.networkError!!,
+                duration = SnackbarDuration.Short
+            )
+            // Opcional: podrías querer "consumir" el error después de mostrarlo
+            // para que no reaparezca si la pantalla se recompone.
+            // mapViewModel.clearError() // (Necesitarías crear esta función)
+        }
+    }
+
 
     // Prepara el lanzador para la solicitud de permisos
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -315,7 +335,7 @@ fun MapScreen(
                 if (uiState.filters.showRiskZones) {
                     uiState.riskZones.forEach { zone ->
                         Polygon(
-                            points = zone.area,
+                            points = zone.area.map { it.toGoogleLatLng() },
                             strokeWidth = 3f, // Ancho del borde
                             strokeColor = when (zone.state) { // Color del borde
                                 BannerState.Warning -> Color(0x80_FBBF24) // Amarillo semitransparente
@@ -361,7 +381,7 @@ fun MapScreen(
                 if (uiState.filters.showFloodedStreets) {
                     uiState.floodedStreets.forEach { street ->
                         Polyline(
-                            points = street.path,
+                            points = street.path.map { it.toGoogleLatLng() },
                             color = Color(0xFF3B82F6), // Un color azul intenso
                             width = 15f, // Grosor de la línea
                             geodesic = true // Hace que la línea siga la curvatura de la Tierra
@@ -371,6 +391,11 @@ fun MapScreen(
             }
         }
 
+        if (uiState.isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center) // Se alinea dentro del Box
+            )
+        }
         // -----------------------------
         // 2️⃣ CAPA INTERMEDIA (UI principal)
         // -----------------------------

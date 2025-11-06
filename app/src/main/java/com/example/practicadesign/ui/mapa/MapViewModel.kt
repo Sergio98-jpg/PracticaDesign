@@ -23,8 +23,8 @@ import com.composables.icons.lucide.TriangleAlert
 import kotlinx.coroutines.launch // ✅ Importa launch
 import com.google.maps.android.PolyUtil
 import com.google.maps.android.PolyUtil.containsLocation
-import com.example.practicadesign.ui.mapa.componentes.Shelter
-import com.example.practicadesign.ui.mapa.componentes.FloodedStreet
+// import com.example.practicadesign.ui.mapa.componentes.Shelter
+//import com.example.practicadesign.ui.mapa.componentes.FloodedStreet
 import com.example.practicadesign.ui.mapa.componentes.SearchResult
 import android.Manifest
 import android.app.Application
@@ -34,15 +34,31 @@ import com.google.android.gms.location.*
 import android.location.Geocoder
 import java.util.Locale
 import com.example.practicadesign.data.MapRepository
-import com.example.practicadesign.data.MapDataResult
+//import com.example.practicadesign.data.MapDataResult
+import com.example.practicadesign.data.FloodedStreet
+import com.example.practicadesign.data.RiskZone
+import com.example.practicadesign.data.Shelter
+import com.example.practicadesign.data.toGoogleLatLng
+import io.ktor.utils.io.errors.IOException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 
 
-// Define el estado de la UI para la pantalla del mapa
+// ====================================================================
+// ✅ 1. DEFINICIÓN DEL ESTADO DE LA UI (DATA CLASSES)
+// Estas clases son cruciales y deben estar aquí, en la parte superior.
+// ====================================================================
+
 data class MapUiState(
     val isLoading: Boolean = true,
+    val networkError: String? = null,
     val isMenuOpen: Boolean = false,
-   // val riskZones: List<String> = emptyList(), // Futuro: será List<InundationZone>
-    val userLocation: LatLng? = null,           // Futuro: será un objeto LatLng
+    val userLocation: LatLng? = null,
     val bannerState: BannerState = BannerState.Safe,
     val riskZones: List<RiskZone> = emptyList(),
     val shelters: List<Shelter> = emptyList(),
@@ -61,24 +77,24 @@ data class MapFilters(
     val showShelters: Boolean = true,
     val showFloodedStreets: Boolean = true
 )
-// Cambia la herencia de ViewModel a AndroidViewModel
-//class MapViewModel : ViewModel() {
+// ====================================================================
+// ✅ 2. IMPLEMENTACIÓN DEL VIEWMODEL
+// Esta es la lógica refactorizada y limpia que habíamos discutido.
+// ====================================================================
+
 class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(MapUiState())
     val uiState = _uiState.asStateFlow()
-
-
-    // 1. Añade una instancia del Repository
     private val mapRepository = MapRepository()
-    // --- ✅ 2. LÓGICA DE UBICACIÓN EN EL VIEWMODEL ---
-
-    // --- LÓGICA DE UBICACIÓN CORREGIDA ---
-    // --- ✅ 1. INICIALIZA GEOCODER ---
+    private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(application)
     private val geocoder = Geocoder(application, Locale.getDefault())
 
-    private val fusedLocationClient: FusedLocationProviderClient =
-        LocationServices.getFusedLocationProviderClient(application) // ✅ Ahora 'application' es válido
-
+    // --- BLOQUE DE INICIALIZACIÓN ÚNICO ---
+    init {
+        fetchInitialMapData()
+        //   loadMapDataFromBackend()
+        listenForRealTimeUpdates()
+    }
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
             locationResult.lastLocation?.let { location ->
@@ -91,7 +107,11 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 checkUserLocationAgainstZones(newLatLng) // ✅ ¡INTEGRACIÓN CLAVE!
                 // --- ✅ 2. REALIZA LA GEODIFICACIÓN INVERSA ---
                 try {
-                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                    val addresses = try {
+                        geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                    } catch (e: IOException) {
+                        null // Geocoder falló (sin internet, etc.)
+                    }
 
                     // --- ✅ LÓGICA MEJORADA PARA OBTENER LA UBICACIÓN COMPLETA ---
                     val fullLocationName = if (addresses?.isNotEmpty() == true) {
@@ -171,13 +191,6 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     }
     // --- FIN DE LA LÓGICA DE UBICACIÓN ---
 
-    init {
-        loadMapDataFromBackend()
-        // 2. ✅ Comienza a escuchar las actualizaciones del WebSocket
-        listenForRealTimeUpdates()
-    }
-
-
     // 2. Crea la función para manejar la acción del menú
     fun onMenuClicked() {
         _uiState.update { currentState ->
@@ -185,25 +198,119 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-/*    // Aquí irán las funciones para la navegación que usará el BottomNav
-    fun onNavigateToAlerts() {
-        // Lógica para navegar a la pantalla de alertas
+    // --- 1. CARGA DE DATOS ---
+
+/*    private fun fetchInitialMapData() {
+        _uiState.update { it.copy(isLoading = true) }
+
+        // --- 1. Cargar Refugios REALES ---
+        mapRepository.getShelters()
+            .onEach { sheltersFromBackend ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        shelters = sheltersFromBackend,
+                        networkError = null // Limpia cualquier error previo
+                    )
+                }
+            }
+            .catch { e ->
+                // ✅ Manejo específico de errores de red
+                println("❌ Error al cargar refugios: ${e.message}")
+                e.printStackTrace()
+                _uiState.update {
+                    it.copy(
+                        networkError = "No se pudieron cargar los refugios",
+                        shelters = emptyList() // Lista vacía como fallback
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+
+        // --- 2. Cargar Zonas de Riesgo SIMULADAS ---
+        mapRepository.getMockRiskZones()
+            .onEach { mockZones ->
+                _uiState.update { currentState ->
+                    currentState.copy(riskZones = mockZones)
+                }
+            }
+            .catch { e ->
+                println("❌ Error al cargar zonas de riesgo: ${e.message}")
+                e.printStackTrace()
+            }
+            .launchIn(viewModelScope)
+
+        // --- 3. Cargar Calles Inundadas SIMULADAS ---
+        mapRepository.getMockFloodedStreets()
+            .onEach { mockStreets ->
+                _uiState.update { currentState ->
+                    currentState.copy(floodedStreets = mockStreets)
+                }
+            }
+            .catch { e ->
+                println("❌ Error al cargar calles inundadas: ${e.message}")
+                e.printStackTrace()
+            }
+            .launchIn(viewModelScope)
+
+        // --- 4. Desactivar el 'isLoading' cuando TODO termine ---
+        combine(
+            mapRepository.getShelters().catch { emit(emptyList()) }, // ✅ Emite lista vacía si falla
+            mapRepository.getMockRiskZones().catch { emit(emptyList()) },
+            mapRepository.getMockFloodedStreets().catch { emit(emptyList()) }
+        ) { _, _, _ ->
+            false // isLoading = false
+        }
+            .onEach { isLoadingState ->
+                _uiState.update { it.copy(isLoading = isLoadingState) }
+            }
+            .catch { e ->
+                println("❌ Error crítico al cargar datos: ${e.message}")
+                _uiState.update { it.copy(isLoading = false) }
+            }
+            .launchIn(viewModelScope)
+    }*/
+private fun fetchInitialMapData() {
+    _uiState.update { it.copy(isLoading = true) }
+
+    viewModelScope.launch {
+        try {
+            // Ejecuta todas las operaciones en paralelo
+            val sheltersDeferred = async {
+                mapRepository.getShelters().catch { emit(emptyList()) }.first()
+            }
+            val zonesDeferred = async {
+                mapRepository.getMockRiskZones().catch { emit(emptyList()) }.first()
+            }
+            val streetsDeferred = async {
+                mapRepository.getMockFloodedStreets().catch { emit(emptyList()) }.first()
+            }
+
+            // Espera a que todas terminen
+            val shelters = sheltersDeferred.await()
+            val zones = zonesDeferred.await()
+            val streets = streetsDeferred.await()
+
+            // Actualiza todo de una vez
+            _uiState.update {
+                it.copy(
+                    shelters = shelters,
+                    riskZones = zones,
+                    floodedStreets = streets,
+                    isLoading = false,
+                    networkError = null
+                )
+            }
+        } catch (e: Exception) {
+            println("❌ Error crítico al cargar datos: ${e.message}")
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    networkError = "Error al cargar los datos del mapa"
+                )
+            }
+        }
     }
-
-    fun onNavigateToShelters() {
-        // Lógica para navegar a la pantalla de refugios
-    }
-
-    init {
-        // En el futuro, aquí iniciarías la carga de datos del mapa,
-        // la ubicación del usuario, etc.
-        // viewModelScope.launch { loadMapData() }
-    }
-
-    // Aquí irán las funciones para interactuar con el mapa,
-    // como onZoomChanged, onUserLocationDetected, etc.*/
-
-    // ✅ AÑADE LAS FUNCIONES PARA MANEJAR LA SELECCIÓN
+}
     fun onShelterSelected(shelter: Shelter) {
         _uiState.update { it.copy(selectedShelter = shelter, selectedRiskZone = null) }
     }
@@ -216,145 +323,11 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(selectedShelter = null, selectedRiskZone = null) }
     }
 
-
-
-
-
-    // ✅ Función que simula la carga de datos
-/*    private fun loadMapDataFromBackend() {
-        viewModelScope.launch {
-            // En una app real, aquí harías una llamada de red con Retrofit
-            // Por ahora, creamos una lista de zonas a mano
-            val simulatedZones = listOf(
-                // --- ZONA DE PRECAUCIÓN (Warning) - AMARILLA ---
-                RiskZone(
-                    id = "zone_warning_1",
-                    state = BannerState.Warning,
-                    area = listOf(
-                        LatLng(19.45, -99.15),
-                        LatLng(19.45, -99.14),
-                        LatLng(19.44, -99.14),
-                        LatLng(19.44, -99.15)
-                    )
-                ),
-                // --- ZONA DE PELIGRO (Danger) - ROJA ---
-                RiskZone(
-                    id = "zone_danger_1",
-                    state = BannerState.Danger,
-                    area = listOf(
-                        LatLng(19.42, -99.17),
-                        LatLng(19.42, -99.16),
-                        LatLng(19.41, -99.16),
-                        LatLng(19.41, -99.17)
-                    )
-                ),
-                // --- ZONA DE PELIGRO (Danger) - ROJA ---
-                RiskZone(
-                    id = "zone_danger_2",
-                    state = BannerState.Warning,
-                    area = listOf(
-                        LatLng(19.44, -99.14),
-                        LatLng(19.44, -99.13),
-                        LatLng(19.43, -99.13),
-                        LatLng(19.43, -99.14)
-                    )
-                )
-
-
-            )
-
-            // ✅ Crea una lista simulada de refugios
-            val simulatedShelters = listOf(
-                Shelter(
-                    id = "shelter_1",
-                    name = "Refugio Deportivo Benito Juárez",
-                    position = LatLng(19.428, -99.155),
-                    isOpen = true,
-                    address = "Av. de los Insurgentes Sur 300",
-                    capacity = 150,
-                    currentOccupancy = 95
-                ),
-                Shelter(
-                    id = "shelter_2",
-                    name = "Centro Comunitario Roma",
-                    position = LatLng(19.419, -99.162),
-                    isOpen = true,
-                    address = "Av. de los Insurgentes Sur 300",
-                    capacity = 150,
-                    currentOccupancy = 95
-                ),
-                Shelter(
-                    id = "shelter_3",
-                    name = "Escuela Primaria (Cerrado)",
-                    position = LatLng(19.44, -99.13),
-                    isOpen = false,
-                    address = "Av. de los Insurgentes Sur 300",
-                    capacity = 150,
-                    currentOccupancy = 95
-                )
-            )
-
-            val simulatedStreets = listOf(
-                FloodedStreet(
-                    id = "street_1",
-                    path = listOf(
-                        LatLng(19.435, -99.140),
-                        LatLng(19.435, -99.135),
-                        LatLng(19.436, -99.135)
-                    )
-                ),
-                FloodedStreet(
-                    id = "street_2",
-                    path = listOf(
-                        LatLng(19.410, -99.165),
-                        LatLng(19.415, -99.168),
-                        LatLng(19.418, -99.170)
-                    )
-                )
-            )
-
-
-            // Actualiza el UiState con los datos recibidos
-            _uiState.update { currentState ->
-                currentState.copy(riskZones = simulatedZones, shelters = simulatedShelters, floodedStreets = simulatedStreets, currentLocationName = "Mérida, YUC")
-            }
-        }
-    }*/
-    private fun loadMapDataFromBackend() {
-        _uiState.update { it.copy(isLoading = true) } // Opcional: para mostrar un spinner
-
-        viewModelScope.launch {
-            try {
-                // Llama a la única función del repositorio
-                val mapData = mapRepository.getMapData()
-
-                // Actualiza el estado con los datos recibidos
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        isLoading = false,
-                        riskZones = mapData.riskZones,
-                        shelters = mapData.shelters,
-                        floodedStreets = mapData.floodedStreets
-                    )
-                }
-            } catch (e: Exception) {
-                // Aquí manejas los errores de red (ej. no hay internet)
-                _uiState.update { it.copy(isLoading = false /*, podrías tener un errorState */) }
-                // Log.e("MapViewModel", "Error al cargar datos del mapa", e)
-            }
-        }
-    }
-
-
     private fun listenForRealTimeUpdates() {
         viewModelScope.launch {
             mapRepository.getRiskZoneUpdates().collect { newRiskZone ->
-                // 3. ✅ Se ha recibido una nueva RiskZone desde el WebSocket
                 _uiState.update { currentState ->
-                    // Lógica para añadir o actualizar la zona de riesgo en la lista
                     val updatedZones = currentState.riskZones.filterNot { it.id == newRiskZone.id } + newRiskZone
-
-                    // Actualiza el estado de la UI
                     currentState.copy(riskZones = updatedZones)
                 }
             }
@@ -370,7 +343,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             // 1. Busca la zona de mayor riesgo que contenga la ubicación del usuario.
             //    maxByOrNull usa el orden natural del enum (Danger > Warning > Safe).
             val highestRiskZone = currentZones
-                .filter { zone -> containsLocation(userLocation, zone.area, false) }
+                .filter { zone -> containsLocation(userLocation, zone.area.map { it.toGoogleLatLng() }, false) }
                 .maxByOrNull { it.state.ordinal }
 
             // 2. Determina el nuevo estado. Si no se encontró ninguna zona, es 'Safe'.
@@ -427,19 +400,30 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private fun filterResults(query: String) {
         // Tomamos la lista completa de refugios y zonas del estado actual
         val allItems = buildList {
-            addAll(_uiState.value.shelters.map {
-                SearchResult(
-                    id = it.id, type = "Refugio", name = it.name, address = it.address,
-                    icon = Lucide.House, iconColor = Color(0xFF0EA5E9)
-                )
-            })
-            addAll(_uiState.value.riskZones.map {
-                SearchResult(
-                    id = it.id, type = "Zona de Riesgo", name = it.state.name,
-                    address = "Área con nivel ${it.state}", icon = Lucide.TriangleAlert,
-                    iconColor = if (it.state == BannerState.Danger) Color(0xFFEF4444) else Color(0xFFF59E0B)
-                )
-            })
+            _uiState.value.shelters.forEach { shelter ->
+                if (shelter.name.isNotBlank()) { // Valida antes de agregar
+                    addAll(_uiState.value.shelters.map {
+                        SearchResult(
+                            id = it.id, type = "Refugio", name = it.name, address = it.address,
+                            icon = Lucide.House, iconColor = Color(0xFF0EA5E9)
+                        )
+                    })
+                }
+            }
+
+            _uiState.value.riskZones.forEach { riskZone ->
+                if (riskZone.id.isNotBlank()) { // Valida antes de agregar
+                    addAll(_uiState.value.riskZones.map {
+                        SearchResult(
+                            id = it.id, type = "Zona de Riesgo", name = it.state.name,
+                            address = "Área con nivel ${it.state}", icon = Lucide.TriangleAlert,
+                            iconColor = if (it.state == BannerState.Danger) Color(0xFFEF4444) else Color(0xFFF59E0B)
+                        )
+                    })
+                }
+            }
+
+
         }
 
         // Aplicamos el filtro si la query no está vacía
