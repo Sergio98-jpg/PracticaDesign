@@ -106,22 +106,69 @@ class MapRepository() {
         }
     }
 
+    fun getRiskZones(): Flow<List<RiskZone>> = flow {
+        try {
+            println("Entre al try RiskZone")
+            // 1. Obtener la respuesta completa del backend
+            val response = client.get("$BASE_URL/zonas-riesgo").body<RiskZoneApiResponse>()
+            System.out.println("Response RiskZone: " + response)
+            // 2. Verificar que la respuesta sea exitosa
+            if (!response.success) {
+                System.out.println("Entre al if del try de RiskZone")
+                throw IOException("Error de API: ${response.message}")
+            }
+
+            // 3. Mapear los DTOs a objetos de dominio
+            val riskZone = response.data.map { it.toDomain() }
+            System.out.println("RiskZone:" + riskZone)
+            // 4. Emitir la lista mapeada
+            emit(riskZone)
+            System.out.println("Acabo el try de RiskZone")
+        } catch (e: ClientRequestException) {
+            println("Entre al catch")
+            // Error 4xx: La petición es incorrecta (ej: URL mal formada, endpoint no encontrado)
+            throw IOException(
+                "No se pudo encontrar el recurso solicitado. Verifique la URL.",
+                e
+            )
+        } catch (e: ServerResponseException) {
+            // Error 5xx: El servidor backend falló
+            throw IOException(
+                "El servidor no pudo procesar la solicitud. Intente más tarde.",
+                e
+            )
+        } catch (e: IOException) {
+            // Error de red general: No hay conexión, DNS no resuelve, timeout, etc.
+            throw IOException(
+                "Error de conexión. Verifique su red y la dirección del servidor.",
+                e
+            )
+        } catch (e: Exception) {
+            // Captura cualquier otro error inesperado (ej: deserialización, etc.)
+            if (e is kotlinx.coroutines.CancellationException) {
+                throw e
+            }
+            // Para cualquier OTRA excepción, la envolvemos en una IOException.
+            throw IOException("Ocurrió un error inesperado al procesar los datos: ${e.message}", e)
+        }
+    }
     // ==================== DATOS SIMULADOS (MOCK) ====================
     // Estos métodos devuelven datos simulados. En una implementación futura,
     // serían reemplazados por llamadas reales a un servicio de API.
 
     /**
      * Obtiene las zonas de riesgo simuladas.
-     * 
+     *
      * Nota: Este método devuelve datos simulados. En una implementación futura,
      * se reemplazaría por una llamada real al endpoint `/risk-zones` del backend.
-     * 
+     *
      * @return Flow que emite la lista de zonas de riesgo simuladas
      */
-    fun getMockRiskZones(): Flow<List<RiskZone>> = flow {
+
+/*    fun getMockRiskZones(): Flow<List<RiskZone>> = flow {
         delay(500) // Simula una pequeña demora de red
         emit(MockData.riskZones)
-    }
+    }*/
 
     /**
      * Obtiene las calles inundadas simuladas.

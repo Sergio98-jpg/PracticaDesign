@@ -15,7 +15,7 @@ object MockData {
     /**
      * Lista de zonas de riesgo simuladas para testing y desarrollo.
      */
-    val riskZones: List<RiskZone> = listOf(
+/*    val riskZones: List<RiskZone> = listOf(
         RiskZone(
             id = "zone_warning_1",
             area = listOf(SerializableLatLng(19.45, -99.15), SerializableLatLng(19.45, -99.14), SerializableLatLng(19.44, -99.14), SerializableLatLng(19.44, -99.15)),
@@ -31,7 +31,7 @@ object MockData {
             area = listOf(SerializableLatLng(19.44, -99.14), SerializableLatLng(19.44, -99.13), SerializableLatLng(19.43, -99.13), SerializableLatLng(19.43, -99.14)),
             state = BannerState.Warning
         )
-    )
+    )*/
 
     /**
      * Lista de calles inundadas simuladas para testing y desarrollo.

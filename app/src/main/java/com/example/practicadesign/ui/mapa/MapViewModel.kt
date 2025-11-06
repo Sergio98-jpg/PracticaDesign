@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.os.Looper
+import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.core.content.ContextCompat
@@ -216,25 +217,29 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 // Ejecuta todas las operaciones en paralelo
-                val sheltersDeferred = async {
+/*                val sheltersDeferred = async {
                     mapRepository.getShelters().catch { emit(emptyList()) }.first()
-                }
+                }*/
+                
                 val zonesDeferred = async {
-                    mapRepository.getMockRiskZones().catch { emit(emptyList()) }.first()
+                    mapRepository.getRiskZones().first()
                 }
+/*                val zonesDeferred = async {
+                    mapRepository.getMockRiskZones().catch { emit(emptyList()) }.first()
+                }*/
                 val streetsDeferred = async {
                     mapRepository.getMockFloodedStreets().catch { emit(emptyList()) }.first()
                 }
 
                 // Espera a que todas terminen
-                val shelters = sheltersDeferred.await()
+             //   val shelters = sheltersDeferred.await()
                 val zones = zonesDeferred.await()
                 val streets = streetsDeferred.await()
 
                 // Actualiza todo de una vez
                 _uiState.update {
                     it.copy(
-                        shelters = shelters,
+                 //       shelters = shelters,
                         riskZones = zones,
                         floodedStreets = streets,
                         isLoading = false,
@@ -243,6 +248,8 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 // Manejo de errores general: actualiza el estado con un mensaje de error
+                Log.e("MapViewModel_ERROR", "Fallo al cargar datos del mapa", e)
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -307,10 +314,13 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             // Busca la zona de mayor riesgo que contenga la ubicación del usuario
             val highestRiskZone = currentZones
                 .filter { zone -> containsLocation(userLocation, zone.area.map { it.toGoogleLatLng() }, false) }
-                .maxByOrNull { it.state.ordinal }
+                // Ahora comparamos usando la función de conversión a BannerState
+                .maxByOrNull { riskLevelToBannerState(it.riskLevel).ordinal }
 
             // Determina el nuevo estado. Si no se encontró ninguna zona, es 'Safe'
-            val newBannerState = highestRiskZone?.state ?: BannerState.Safe
+            val newBannerState = highestRiskZone?.let {
+                riskLevelToBannerState(it.riskLevel)
+            } ?: BannerState.Safe
 
             // Actualiza el UiState solo si el estado ha cambiado, para evitar redibujos innecesarios
             if (newBannerState != uiState.value.bannerState) {
@@ -319,6 +329,18 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Función de ayuda para convertir el String de nivel de riesgo a un BannerState.
+     * Centraliza la lógica de "traducción".
+     */
+    private fun riskLevelToBannerState(riskLevel: String): BannerState {
+        return when (riskLevel.uppercase()) {
+            "ALTO" -> BannerState.Danger
+            "MEDIO" -> BannerState.Warning
+            "BAJO" -> BannerState.Safe // O puedes tener un BannerState.Info si quieres
+            else -> BannerState.Safe
+        }
+    }
     // ==================== FILTROS ====================
 
     /**
@@ -409,20 +431,26 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            // Agrega todas las zonas de riesgo como resultados de búsqueda
+// Agrega todas las zonas de riesgo como resultados de búsqueda
             _uiState.value.riskZones.forEach { riskZone ->
+                // Usamos la función de ayuda para "traducir" el dato crudo a un estado de UI
+                val bannerState = riskLevelToBannerState(riskZone.riskLevel)
+
                 if (riskZone.id.isNotBlank()) {
                     add(
                         SearchResult(
                             id = riskZone.id,
                             type = "Zona de Riesgo",
-                            name = riskZone.state.name,
-                            address = "Área con nivel ${riskZone.state}",
+                            // El nombre de la zona ahora viene de la propiedad 'name'
+                            name = riskZone.name,
+                            // La dirección describe el nivel de riesgo
+                            address = "Área con nivel de riesgo ${riskZone.riskLevel.lowercase()}",
                             icon = Lucide.TriangleAlert,
-                            iconColor = if (riskZone.state == BannerState.Danger) {
-                                Color(0xFFEF4444)
+                            // El color del icono depende del BannerState traducido
+                            iconColor = if (bannerState == BannerState.Danger) {
+                                Color(0xFFEF4444) // Rojo
                             } else {
-                                Color(0xFFF59E0B)
+                                Color(0xFFF59E0B) // Naranja/Amarillo
                             }
                         )
                     )

@@ -45,9 +45,11 @@ import com.example.practicadesign.data.Shelter
 @Preview(showBackground = true, name = "Zona de Peligro")
 @Composable
 fun PreviewZoneRiskInfoContentDanger() {
+    // El modelo ahora usa 'riskLevel' con un String, imitando los datos del backend.
     val sampleZone = RiskZone(
         id = "zone_danger_1",
-        state = BannerState.Danger,
+        name = "Centro Histórico", // Añadimos el nombre para que el preview sea más completo
+        riskLevel = "ALTO", // Pasamos el dato crudo como String
         area = emptyList()
     )
     ZoneRiskInfoContent(
@@ -66,10 +68,16 @@ fun PreviewZoneRiskInfoContentDanger() {
  */
 @Composable
 fun ZoneRiskInfoContent(zone: RiskZone, modifier: Modifier = Modifier) {
-    val (estadoTexto, colorEstado, colorTexto) = when (zone.state) {
+/*    val (estadoTexto, colorEstado, colorTexto) = when (zone.state) {
         BannerState.Safe -> Triple("Zona segura", Color(0xFF10B981), Color(0xFF065F46))
         BannerState.Warning -> Triple("Zona en advertencia", Color(0xFFFDF7E7), Color(0xFF8F4617))
         BannerState.Danger -> Triple("Zona en peligro", Color(0xFFFFEBEE), Color(0xFF991B1B))
+    }*/
+    val (estadoTexto, colorEstado, colorTexto) = when (zone.riskLevel.uppercase()) {
+        "BAJO" -> Triple("Zona segura", Color(0xFF10B981), Color(0xFF065F46))
+        "MEDIO" -> Triple("Zona en advertencia", Color(0xFFFDF7E7), Color(0xFF8F4617))
+        "ALTO" -> Triple("Zona en peligro", Color(0xFFFFEBEE), Color(0xFF991B1B))
+        else -> Triple("Nivel desconocido", Color.Gray, Color.White) // Caso por defecto
     }
 
     Column(modifier = modifier.padding(16.dp)) {
@@ -100,10 +108,16 @@ fun ZoneRiskInfoContent(zone: RiskZone, modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = when (zone.state) {
+/*            text = when (zone.state) {
                 BannerState.Safe -> "Esta área es considerada segura actualmente."
                 BannerState.Warning -> "Precaución: hay posibles riesgos en esta zona."
                 BannerState.Danger -> "Peligro: área con alto riesgo de inundación. Se recomienda evacuar inmediatamente y dirigirse al refugio más cercano."
+            }*/
+            text = when (zone.riskLevel.uppercase()) {
+                "BAJO" -> "Esta área es considerada segura actualmente."
+                "MEDIO" -> "Precaución: hay posibles riesgos en esta zona. Mantente informado."
+                "ALTO" -> "Peligro: área con alto riesgo. Se recomienda buscar un lugar seguro y consultar los refugios cercanos."
+                else -> "No hay información de riesgo disponible para esta zona."
             },
             style = MaterialTheme.typography.bodyMedium,
             color = Color(0xFF64748B)

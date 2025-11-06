@@ -77,12 +77,13 @@ fun LoginScreen(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(RoundedCornerShape(16.dp))
+                        .shadow(8.dp, RoundedCornerShape(16.dp))
                         .background(
                             Brush.linearGradient(
                                 listOf(Color(0xFF0891B2), Color(0xFF06B6D4))
                             )
-                        )
-                        .shadow(8.dp, RoundedCornerShape(16.dp)),
+                        ),
+
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

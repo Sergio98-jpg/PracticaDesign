@@ -14,8 +14,16 @@ import kotlinx.serialization.Serializable
  * @property state Nivel de riesgo de la zona (Warning, Danger, Safe)
  */
 @Serializable
+/*
 data class RiskZone(
     val id: String,
     val area: List<SerializableLatLng>,
     val state: BannerState
+)*/
+
+data class RiskZone(
+    val id: String,
+    val name: String,
+    val riskLevel: String, // Podría ser un enum en el futuro para más seguridad de tipos
+    val area: List<SerializableLatLng>
 )

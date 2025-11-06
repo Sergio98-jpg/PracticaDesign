@@ -27,6 +27,8 @@ object KtorClient {
                 ignoreUnknownKeys = true
                 // Permite que campos con valores por defecto no necesiten estar en el JSON
                 isLenient = true
+                coerceInputValues = true // ⬅️ Agrega esto
+                encodeDefaults = true     // ⬅️ Y esto también
             })
         }
 

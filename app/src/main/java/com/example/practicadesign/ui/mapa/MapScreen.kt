@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+//import androidx.paging.map
 //import androidx.privacysandbox.tools.core.generator.build
 import com.composables.icons.lucide.*
 import com.example.practicadesign.R
@@ -236,23 +237,33 @@ fun MapScreen(
 
             // Zonas de riesgo (polígonos)
             if (cameraPositionState.position.zoom >= minZoomToShowMarkers && uiState.filters.showRiskZones) {
-                uiState.riskZones.forEach { zone ->
+                uiState.riskZones.forEach { riskZone ->
+
+                    val color = when (riskZone.riskLevel) {
+                        "ALTO" -> Color.Red.copy(alpha = 0.5f) // O BannerState.DANGER.color
+                        "MEDIO" -> Color.Yellow.copy(alpha = 0.5f) // O BannerState.WARNING.color
+                        "BAJO" -> Color.Green.copy(alpha = 0.5f) // O BannerState.SAFE.color
+                        else -> Color.Gray.copy(alpha = 0.5f)
+                    }
                     Polygon(
-                        points = zone.area.map { it.toGoogleLatLng() },
+                        //points = zone.area.map { it.toGoogleLatLng() },
+                        points = riskZone.area.map { LatLng(it.latitude, it.longitude) },
+                        fillColor = color,
                         strokeWidth = 3f,
-                        strokeColor = when (zone.state) {
+                        strokeColor = color.copy(alpha = 1f),
+                        /*strokeColor = when (riskZone.state) {
                             BannerState.Warning -> Color(0x80_FBBF24)
                             BannerState.Danger -> Color(0x80_F87171)
                             else -> Color.Transparent
-                        },
-                        fillColor = when (zone.state) {
+                        }*/
+                       /* fillColor = when (riskZone.state) {
                             BannerState.Warning -> Color(0x55_FBBF24)
                             BannerState.Danger -> Color(0x55_F87171)
                             else -> Color.Transparent
-                        },
+                        }*/
                         clickable = true,
                         onClick = {
-                            mapViewModel.onZoneRiskSelected(zone)
+                            mapViewModel.onZoneRiskSelected(riskZone)
                         }
                     )
                 }
