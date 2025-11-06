@@ -42,7 +42,7 @@ class MapRepository() {
      * - Producción: https://tudominio.com/api
      */
     companion object {
-        private const val BASE_URL = "http://192.168.0.21:8080/api"
+        private const val BASE_URL = "http://192.168.0.19:8080/api"
     }
 
     /**
@@ -61,20 +61,24 @@ class MapRepository() {
      */
     fun getShelters(): Flow<List<Shelter>> = flow {
         try {
+           // System.out.println("Entre al try")
             // 1. Obtener la respuesta completa del backend
             val response = client.get("$BASE_URL/refugios").body<SheltersApiResponse>()
-
+            System.out.println("Response:" + response)
             // 2. Verificar que la respuesta sea exitosa
             if (!response.success) {
+                System.out.println("Entre al if del try")
                 throw IOException("Error de API: ${response.message}")
             }
 
             // 3. Mapear los DTOs a objetos de dominio
             val shelters = response.data.map { it.toDomain() }
-
+            System.out.println("Shelter:" + shelters)
             // 4. Emitir la lista mapeada
             emit(shelters)
+            System.out.println("Acabo el try")
         } catch (e: ClientRequestException) {
+            println("Entre al catch")
             // Error 4xx: La petición es incorrecta (ej: URL mal formada, endpoint no encontrado)
             throw IOException(
                 "No se pudo encontrar el recurso solicitado. Verifique la URL.",
@@ -94,15 +98,12 @@ class MapRepository() {
             )
         } catch (e: Exception) {
             // Captura cualquier otro error inesperado (ej: deserialización, etc.)
-            throw IOException(
-                "Ocurrió un error inesperado al procesar los datos: ${e.message}",
-                e
-            )
+            if (e is kotlinx.coroutines.CancellationException) {
+                throw e
+            }
+            // Para cualquier OTRA excepción, la envolvemos en una IOException.
+            throw IOException("Ocurrió un error inesperado al procesar los datos: ${e.message}", e)
         }
-    }.catch { e ->
-        // Emite una lista vacía en caso de error para que el ViewModel pueda manejarlo
-        emit(emptyList())
-        throw e
     }
 
     // ==================== DATOS SIMULADOS (MOCK) ====================

@@ -1,90 +1,59 @@
 package com.example.practicadesign.ui.refugios
 
-import androidx.activity.result.launch
-import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.copy
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.composables.icons.lucide.ArrowRight
-import com.composables.icons.lucide.ChevronRight
-import com.composables.icons.lucide.CircleX
-import com.composables.icons.lucide.House
-import com.composables.icons.lucide.Lucide
-import com.example.practicadesign.data.MapRepository
-import com.google.android.gms.maps.model.LatLng
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import com.example.practicadesign.ui.refugios.componentes.*
+import com.example.practicadesign.ui.refugios.componentes.ErrorStateComponent
+import com.example.practicadesign.ui.refugios.componentes.QuickFiltersRow
+import com.example.practicadesign.ui.refugios.componentes.ShelterDetailCard
+import com.example.practicadesign.ui.refugios.componentes.ShelterItem
+import com.example.practicadesign.ui.refugios.componentes.ShelterItemSkeleton
 
-
-/* -------------------------------------------------
-   VISTA PREVIA (PREVIEW)
-------------------------------------------------- */
-
-/*@Preview(showBackground = true)
-@Composable
-fun PreviewSheltersScreen() {
-    // 1. Crea una instancia de un ViewModel falso.
-    val fakeViewModel = object : SheltersViewModel() {
-        init {
-            // 2. Sobreescribe el estado inicial con datos de prueba.
-            //    Establece isLoading = false para que la preview muestre la lista.
-            _uiState.value = SheltersUiState(
-                isLoading = false,
-                shelters = listOf(
-                    Shelter("1", LatLng(19.428, -99.155), "Refugio Benito Juárez", true, "Av. Insurgentes Sur 300", 150, 95),
-                    Shelter("2", LatLng(19.419, -99.162), "Centro Comunitario Roma", true, "Roma Norte, CDMX", 200, 42),
-                    Shelter("3", LatLng(19.44, -99.13), "Escuela Primaria (Llena)", true, "Av. Reforma 10", 120, 120),
-                    Shelter("4", LatLng(19.41, -99.165), "Auditorio Municipal (Cerrado)", false, "Centro Histórico", 300, 0)
-                ),
-                selectedFilter = ShelterFilter.ALL
-            )
-        }
-        // No necesitamos sobreescribir onFilterChange porque la preview no interactúa.
-    }
-
-    // 3. Pasa el ViewModel falso a tu pantalla.
-    SheltersScreen(sheltersViewModel = fakeViewModel)
-}*/
-
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
+/**
+ * Pantalla principal que muestra una lista de refugios disponibles.
+ *
+ * Esta pantalla se encarga de:
+ * 1. Observar el estado de la UI desde [SheltersViewModel].
+ * 2. Mostrar un indicador de carga mientras se obtienen los datos.
+ * 3. Presentar una barra de filtros rápidos.
+ * 4. Renderizar una lista de refugios (`LazyColumn`) que se puede expandir para ver detalles.
+ *
+ * Es una vista "tonta" que delega toda la lógica de negocio y estado al ViewModel.
+ *
+ * @param sheltersViewModel El ViewModel que proporciona el estado y maneja la lógica.
+ */
 @Composable
 fun SheltersScreen(
     sheltersViewModel: SheltersViewModel = viewModel()
 ) {
+    // --- ESTADO ---
+    // Observa el UiState del ViewModel. Cualquier cambio aquí causará una recomposición.
     val uiState by sheltersViewModel.uiState.collectAsState()
-    var selectedShelterId by remember { mutableStateOf<String?>(null) }
 
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .background(Color(0xFFF8FAFC))) {
-
-        // --- Header ---
+    // --- UI ---
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAFC)) // Color de fondo base para la pantalla
+    ) {
+        // --- Encabezado ---
         Text(
             text = "Refugios",
             style = MaterialTheme.typography.headlineMedium,
@@ -92,115 +61,85 @@ fun SheltersScreen(
             color = Color(0xFF0F172A),
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
         )
-        // --- Quick Filters ---
+
+        // --- Filtros Rápidos ---
         QuickFiltersRow(
             selectedFilter = uiState.selectedFilter,
-            onFilterSelected = { sheltersViewModel.onFilterChange(it) }
+            // Notifica al ViewModel cuando el usuario selecciona un nuevo filtro.
+            onFilterSelected = { filter -> sheltersViewModel.onFilterChange(filter) }
         )
 
-        // ✅ Manejamos el estado de carga
-        if (uiState.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
-            // --- Lista de refugios ---
-            LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 100.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // ✅ Usamos la lista filtrada del UiState
-                items(uiState.filteredShelters, key = { it.id }) { shelter ->
-                    val expanded = selectedShelterId == shelter.id
-
-                    Column {
-
-                        // --- Item compacto ---
-                        ShelterItem(
-                            shelter = shelter,
-                            expanded = expanded,
-                            onClick = {
-                                selectedShelterId = if (expanded) null else shelter.id
-                            }
-                        )
-
-                        // --- Detalle expandido ---
-                        AnimatedVisibility(
-                            visible = expanded,
-                            enter = expandVertically(animationSpec = tween(300)) + fadeIn(),
-                            exit = shrinkVertically(animationSpec = tween(300)) + fadeOut()
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp)) // 👈 Aplica el clip aquí
-                                    .background(Color.White)         // 👈 Asegura fondo uniforme
-                            ) {
-                                ShelterDetailCard(shelter = shelter) {
-                                    selectedShelterId = null
-                                }
-                            }
-                                Spacer(Modifier.height(8.dp))
-                        }
-
+        // --- Contenido Principal (Carga o Lista) ---
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (uiState.isLoading) {
+                // Muestra un indicador de carga centrado si los datos se están obteniendo.
+                //CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    userScrollEnabled = false // El usuario no debería poder hacer scroll en el esqueleto
+                ) {
+                    items(10) { // Muestra 10 items fantasma
+                        ShelterItemSkeleton()
                     }
                 }
+            } else if (uiState.errorMessage != null) { // <-- NUEVA CONDICIÓN
+                // Muestra un componente de error
+                val errorMessage = uiState.errorMessage
+                ErrorStateComponent(
+                    message = errorMessage,
+                    onRetry = { sheltersViewModel.retryLoadShelters() } // <-- ¡Avanzado pero ideal!
+                )
+            } else {
+                // Muestra la lista de refugios una vez que los datos están listos.
+                SheltersList(
+                    uiState = uiState,
+                    onShelterClick = { shelterId -> sheltersViewModel.onShelterToggled(shelterId) }
+                )
             }
         }
     }
 }
 
-
-
-
-
-
-
-
-/*
-data class SheltersUiState(
-    val isLoading: Boolean = true,
-    val shelters: List<Shelter> = emptyList(),
-    val selectedFilter: ShelterFilter = ShelterFilter.ALL
+/**
+ * Composable que renderiza la lista de refugios.
+ *
+ * Extraer la `LazyColumn` a su propio Composable mejora la legibilidad y el enfoque de `SheltersScreen`.
+ *
+ * @param uiState El estado actual de la UI que contiene la lista de refugios y cuál está expandido.
+ * @param onShelterClick Callback que se invoca cuando un usuario toca un ítem de refugio.
+ */
+@Composable
+private fun SheltersList(
+    uiState: SheltersUiState,
+    onShelterClick: (shelterId: String) -> Unit
 ) {
-    val filteredShelters: List<Shelter>
-        get() = when (selectedFilter) {
-            ShelterFilter.ALL -> shelters
-            ShelterFilter.OPEN -> shelters.filter { it.isOpen }
-            ShelterFilter.NEAREST -> shelters // La lógica de ordenamiento real es compleja para preview
-            ShelterFilter.AVAILABLE -> shelters.filter { it.currentOccupancy < it.capacity }
-        }
-}
+    LazyColumn(
+        contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp) // Aumenta el espacio para la tarjeta de detalle
+    ) {
+        items(uiState.filteredShelters, key = { it.id }) { shelter ->
+            val isExpanded = uiState.expandedShelterId == shelter.id
 
-// ✅ Hereda de androidx.lifecycle.ViewModel
-open class SheltersViewModel : ViewModel() {
+            // El ShelterItem es el ítem principal siempre visible.
+            ShelterItem(
+                shelter = shelter,
+                expanded = isExpanded,
+                onClick = { onShelterClick(shelter.id) }
+            )
 
-    // ✅ Usa MutableStateFlow para que la UI pueda observar los cambios
-    val _uiState = MutableStateFlow(SheltersUiState())
-    val uiState = _uiState.asStateFlow()
-
-    private val mapRepository = MapRepository()
-
-    init {
-        loadShelters()
-    }
-
-    private fun loadShelters() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            try {
-                val mapData = mapRepository.getMapData()
-                _uiState.update {
-                    it.copy(isLoading = false, shelters = mapData.shelters)
-                }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false) }
+            // El ShelterDetailCard solo es visible cuando el ítem está expandido.
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(animationSpec = tween(300)) + fadeIn(),
+                exit = shrinkVertically(animationSpec = tween(300)) + fadeOut()
+            ) {
+                // El detalle se muestra directamente debajo del ítem.
+                ShelterDetailCard(
+                    shelter = shelter,
+                    onClose = { onShelterClick(shelter.id) } // Tocar el botón de cerrar también invoca el toggle
+                )
             }
         }
     }
-
-    fun onFilterChange(filter: ShelterFilter) {
-        _uiState.update { currentState ->
-            currentState.copy(selectedFilter = filter)
-        }
-    }
-}*/
+}

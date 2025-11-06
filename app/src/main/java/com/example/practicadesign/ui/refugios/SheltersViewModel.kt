@@ -1,65 +1,122 @@
 package com.example.practicadesign.ui.refugios
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.practicadesign.data.MapRepository // Reutilizamos el repo del mapa!
-import com.example.practicadesign.data.Shelter
+import com.example.practicadesign.data.MapRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.example.practicadesign.ui.refugios.componentes.ShelterFilter
 
-data class SheltersUiState(
-    val isLoading: Boolean = true,
-    val shelters: List<Shelter> = emptyList(),
-    val selectedFilter: ShelterFilter = ShelterFilter.ALL
-) {
-    val filteredShelters: List<Shelter>
-        get() = when (selectedFilter) {
-            ShelterFilter.ALL -> shelters
-            ShelterFilter.OPEN -> shelters.filter { it.isOpen }
-            ShelterFilter.NEAREST -> shelters.sortedBy { it.position.latitude } // simulado
-            ShelterFilter.AVAILABLE -> shelters.filter { it.currentOccupancy < it.capacity }
-        }
-}
+/**
+ * ViewModel para la pantalla de Refugios ([SheltersScreen]).
+ *
+ * Se encarga de la lógica de negocio:
+ * 1. Obtener la lista de refugios desde el [MapRepository].
+ * 2. Manejar el estado de carga y los posibles errores.
+ * 3. Procesar los eventos del usuario, como cambiar filtros o expandir/colapsar un ítem.
+ * 4. Exponer un único [StateFlow] de [SheltersUiState] que la UI puede observar.
+ */
+open class SheltersViewModel : ViewModel() {
 
-class SheltersViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(SheltersUiState())
-    val uiState = _uiState.asStateFlow()
+    // Repositorio para obtener los datos. En un futuro se inyectaría con Hilt/Koin.
+    private val repository = MapRepository()
 
-    // Reutilizamos MapRepository para no duplicar la lógica de carga de datos.
-    private val mapRepository = MapRepository()
+    // Flujo de estado mutable y privado. Solo el ViewModel puede modificarlo.
+    protected val _uiState = MutableStateFlow(SheltersUiState())
+
+    // Flujo de estado inmutable y público. La UI solo puede leerlo.
+    val uiState: StateFlow<SheltersUiState> = _uiState.asStateFlow()
 
     init {
+        // Al inicializarse el ViewModel, se lanzan las operaciones de carga de datos.
         loadShelters()
     }
 
+    /**
+     * Obtiene la lista de refugios del repositorio y actualiza el UiState.
+     */
     private fun loadShelters() {
+        Log.d("SheltersViewModel", "Iniciando la carga de refugios...")
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            try {
-                // Recolectamos el Flow de refugios del repositorio
-                mapRepository.getShelters().collect { sheltersFromBackend ->
-                    _uiState.update {
-                        it.copy(
+            val startTime = System.currentTimeMillis()
+            repository.getShelters()
+                .catch { exception ->
+                    // Cuando el Flow lanza una excepción, este bloque se activa.
+                    System.out.println("ViewModel atrapó un error: ${exception.message}")
+
+                    val elapsedTime = System.currentTimeMillis() - startTime
+                    val remainingTime = 500L - elapsedTime // 500ms como tiempo mínimo
+                    if (remainingTime > 0) {
+                        delay(remainingTime)
+                    }
+                    // Actualizamos el estado para indicar que la carga falló,
+                    // pero la app no crashea. Podríamos añadir un mensaje de error.
+                    _uiState.update { it.copy(isLoading = false , errorMessage = "No se pudieron cargar los datos") }
+                }
+                .collect { shelters ->
+
+                    val elapsedTime = System.currentTimeMillis() - startTime
+                    val remainingTime = 500L - elapsedTime // 500ms como tiempo mínimo
+                    if (remainingTime > 0) {
+                        delay(remainingTime)
+                    }
+                    // Cuando se reciben los datos, se actualiza el estado.
+                    _uiState.update { currentState ->
+                        currentState.copy(
                             isLoading = false,
-                            shelters = sheltersFromBackend
+                            shelters = shelters
                         )
                     }
                 }
-            } catch (e: Exception) {
-                // En caso de error, dejamos de cargar y mantenemos lista vacía
-                e.printStackTrace()
-                _uiState.update { it.copy(isLoading = false) }
-            }
         }
     }
 
-    fun onFilterChange(filter: ShelterFilter) {
-        // Para actualizar el estado de un StateFlow, se usa .update()
+    /**
+     * Maneja el evento de cambio de filtro desde la UI.
+     * Crea un nuevo estado con el filtro seleccionado.
+     *
+     * @param newFilter El nuevo filtro seleccionado por el usuario.
+     */
+    fun onFilterChange(newFilter: ShelterFilter) {
+        _uiState.update { it.copy(selectedFilter = newFilter) }
+    }
+
+    /**
+     * Maneja el evento de tocar un ítem de refugio en la lista.
+     * Si el refugio ya está expandido, lo colapsa (expandedShelterId = null).
+     * Si está colapsado, lo expande.
+     *
+     * @param shelterId El ID del refugio que fue tocado.
+     */
+    fun onShelterToggled(shelterId: String) {
         _uiState.update { currentState ->
-            currentState.copy(selectedFilter = filter)
+            val newExpandedId = if (currentState.expandedShelterId == shelterId) {
+                null // Si ya estaba expandido, lo cerramos
+            } else {
+                shelterId // Si no, lo expandimos
+            }
+            currentState.copy(expandedShelterId = newExpandedId)
         }
+    }
+
+    /**
+     * Maneja el evento de reintento desde la UI.
+     * Resetea el estado de error y vuelve a lanzar la carga de datos.
+     */
+    fun retryLoadShelters() {
+        // Primero, reseteamos el estado para que vuelva a mostrar el loader
+        _uiState.update {
+            it.copy(
+                isLoading = true,
+                errorMessage = null // Limpiamos el mensaje de error anterior
+            )
+        }
+        // Luego, llamamos a la función de carga original
+        loadShelters()
     }
 }

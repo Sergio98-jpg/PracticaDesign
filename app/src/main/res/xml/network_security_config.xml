@@ -7,8 +7,8 @@
             1. La IP especial del emulador para localhost.
             2. La dirección de loopback estándar.
         -->
-      <!--  <domain includeSubdomains="true">192.168.0.21</domain>-->
-        <domain includeSubdomains="true">10.154.219.198</domain>
+        <domain includeSubdomains="true">192.168.0.19</domain>
+<!--        <domain includeSubdomains="true">10.154.219.198</domain>-->
         <domain includeSubdomains="true">localhost</domain>
     </domain-config>
 </network-security-config>

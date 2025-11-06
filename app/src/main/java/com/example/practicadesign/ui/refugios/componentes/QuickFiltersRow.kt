@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.practicadesign.ui.refugios.ShelterFilter
 import androidx.navigation.NavController
 import com.example.practicadesign.ui.mapa.MapScreen
 //import com.example.practicadesign.ui.refugios.ShelterFilter
@@ -42,7 +43,7 @@ private fun QuickFiltersRowAllPreview() {
 @Composable
 private fun QuickFiltersRowAvailablePreview() {
     QuickFiltersRow(
-        selectedFilter = ShelterFilter.AVAILABLE,
+        selectedFilter = ShelterFilter.WITH_AVAILABILITY,
         onFilterSelected = {}
     )
 }
@@ -55,8 +56,8 @@ fun QuickFiltersRow(
     val filters = listOf(
         ShelterFilter.ALL to "Todos",
         ShelterFilter.OPEN to "Abiertos",
-        ShelterFilter.NEAREST to "Más cercanos",
-        ShelterFilter.AVAILABLE to "Con espacio"
+     //   ShelterFilter.NEAREST to "Más cercanos",
+        ShelterFilter.WITH_AVAILABILITY to "Con espacio"
     )
 
     Row(
@@ -90,8 +91,11 @@ fun QuickFiltersRow(
         }
     }
 }
+/*
 
+*/
 /* -------------------------------------------------
    ENUM DE FILTROS Y VIEWMODEL
-------------------------------------------------- */
-enum class ShelterFilter { ALL, OPEN, NEAREST, AVAILABLE }
+------------------------------------------------- *//*
+
+enum class ShelterFilter { ALL, OPEN, NEAREST, AVAILABLE }*/

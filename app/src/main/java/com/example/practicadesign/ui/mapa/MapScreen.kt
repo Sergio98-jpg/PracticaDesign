@@ -136,11 +136,42 @@ fun MapScreen(
     LaunchedEffect(uiState.userLocation) {
         val location = uiState.userLocation
         if (location != null && !hasAnimatedToUserLocation) {
-            cameraPositionState.animate(
+/*            cameraPositionState.animate(
                 update = CameraUpdateFactory.newLatLngZoom(location, 16f),
                 durationMs = 1500
             )
+            hasAnimatedToUserLocation = true*/
+            // --- INICIO DE LA LÓGICA DE CENTRADO CON DESPLAZAMIENTO ---
+
+            // 1. Definimos el desplazamiento vertical que queremos en dp.
+            // Un valor negativo mueve la cámara HACIA ABAJO (desplazando el marcador).
+            // Ajusta este valor para que coincida con el que usas en el botón de centrar.
+            val yOffsetDp = -125.dp
+
+            // 2. Convertimos los dp a píxeles (px).
+        //    val density = LocalDensity.current.density
+        //    val yOffsetPx = yOffsetDp.value * density
+
+            val density = context.resources.displayMetrics.density
+            val yOffsetPx = yOffsetDp.value * density
+
+            // 3. Primero, animamos la cámara a la ubicación con un zoom inicial.
+            cameraPositionState.animate(
+                update = CameraUpdateFactory.newLatLngZoom(location, 16f),
+                durationMs = 1500 // Reducimos un poco para que la animación total no sea muy larga
+            )
+
+            // 4. Inmediatamente después, aplicamos la animación de desplazamiento.
+            // Esto crea un efecto de "reajuste" suave.
+            cameraPositionState.animate(
+                update = CameraUpdateFactory.scrollBy(0f, yOffsetPx),
+                durationMs = 500 // Duración corta para el ajuste final
+            )
+
+            // 5. Marcamos que la animación inicial ya se ha completado.
             hasAnimatedToUserLocation = true
+
+            // --- FIN DE LA LÓGICA ---
         }
     }
 
