@@ -1,90 +1,109 @@
 package com.example.practicadesign.data
 
-import com.example.practicadesign.ui.mapa.componentes.RiskZone
 import io.ktor.client.*
-//import io.ktor.client.engine.android.*
+import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.retry
 import kotlinx.serialization.json.Json
-import io.ktor.client.engine.cio.CIO
-import kotlinx.coroutines.delay // Para la espera antes de reintentar
-import kotlinx.coroutines.flow.catch // Para capturar errores en el Flow
-import kotlinx.coroutines.flow.retry // Para reintentar la conexión
+import java.io.IOException
+
+/**
+ * Listener para actualizaciones en tiempo real de zonas de riesgo vía WebSocket.
+ * 
+ * Esta clase gestiona la conexión WebSocket con el servidor para recibir
+ * actualizaciones en tiempo real de las zonas de riesgo.
+ * 
+ * Nota: El WebSocket aún no está completamente funcional y requiere:
+ * - Configurar la URL del servidor (host, port, path)
+ * - Asegurar que el backend soporte WebSocket en el endpoint especificado
+ * 
+ * @property client Cliente HTTP de Ktor configurado con soporte WebSocket
+ */
 class RiskZoneWebSocketListener {
 
-    // 1. Configura el cliente de Ktor
+    /**
+     * Cliente HTTP de Ktor configurado con soporte WebSocket.
+     */
     private val client = HttpClient(CIO) {
-        install(WebSockets) // Habilita el plugin de WebSockets
-        install(ContentNegotiation) { // Habilita la negociación de contenido (para JSON)
+        install(WebSockets)
+        install(ContentNegotiation) {
             json(Json {
-                ignoreUnknownKeys = true // Ignora campos del JSON que no estén en tu data class
+                ignoreUnknownKeys = true
             })
         }
     }
 
-    // 2. Crea una función que devuelve un Flow de RiskZones
-    fun listenForRiskZoneUpdates(): Flow<RiskZone> {
-        // ✅ Usa el constructor de Flow para envolver la lógica de suspensión
-        return flow {
-            // Ahora estamos dentro de un bloque de corrutina, por lo que podemos llamar a suspend functions
-            println("WebSocket: Intentando conectar...") // Log para depuración
-            client.webSocket( // Usamos client.webSocket que es más directo para sesiones continuas
-                host = "tu-servidor.com", // <-- ⚠️ CAMBIA ESTO
-                port = 8080,             // <-- ⚠️ CAMBIA ESTO
-                path = "/ws/risk-zones"  // <-- ⚠️ CAMBIA ESTO
-            ) { // El código dentro de este bloque se ejecuta mientras la sesión WebSocket está activa
-                println("WebSocket: Conexión establecida.") // Log para depuración
-                // Convierte los mensajes entrantes en un Flow
-                incoming.consumeAsFlow()
-                    .mapNotNull { frame ->
-                        // Procesa cada mensaje que llega
-                        if (frame is io.ktor.websocket.Frame.Text) {
-                            try {
-                                // Intenta decodificar el texto del mensaje a un objeto RiskZone
-                                Json.decodeFromString<RiskZone>(frame.readText())
-                            } catch (e: Exception) {
-                                // Si el JSON es inválido o no es lo que esperas, lo ignoras
-                                null
-                            }
-                        } else {
+    /**
+     * Escucha actualizaciones en tiempo real de zonas de riesgo desde el servidor.
+     * 
+     * Esta función establece una conexión WebSocket y emite actualizaciones
+     * de zonas de riesgo cuando se reciben del servidor.
+     * 
+     * Nota: La URL del servidor debe ser configurada antes de usar esta función.
+     * Actualmente está como placeholder y requiere configuración.
+     * 
+     * @return Flow que emite objetos RiskZone cuando se reciben actualizaciones
+     */
+    fun listenForRiskZoneUpdates(): Flow<RiskZone> = flow {
+        // TODO: Configurar la URL del servidor WebSocket
+        // Por ahora, esta función no está completamente funcional
+        client.webSocket(
+            host = "tu-servidor.com", // ⚠️ CAMBIAR: Configurar la URL del servidor
+            port = 8080,               // ⚠️ CAMBIAR: Configurar el puerto
+            path = "/ws/risk-zones"    // ⚠️ CAMBIAR: Configurar la ruta del endpoint
+        ) {
+            // Convierte los mensajes entrantes en un Flow
+            incoming.consumeAsFlow()
+                .mapNotNull { frame ->
+                    // Procesa cada mensaje que llega
+                    if (frame is Frame.Text) {
+                        try {
+                            // Intenta decodificar el texto del mensaje a un objeto RiskZone
+                            Json.decodeFromString<RiskZone>(frame.readText())
+                        } catch (e: Exception) {
+                            // Si el JSON es inválido, se ignora el mensaje
                             null
                         }
+                    } else {
+                        null
                     }
-                    .collect { riskZone ->
-                        // ✅ Emite cada objeto RiskZone válido en el Flow principal
-                        emit(riskZone)
-                    }
+                }
+                .collect { riskZone ->
+                    // Emite cada objeto RiskZone válido en el Flow principal
+                    emit(riskZone)
+                }
+        }
+    }
+        .catch { e ->
+            // Captura errores de conexión o durante la sesión
+            // El retry se encargará de reintentar si es necesario
+        }
+        .retry(retries = 3) { cause ->
+            // Política de reintento: solo reintenta si el error es de red
+            if (cause is IOException) {
+                delay(5000) // Espera 5 segundos antes del siguiente intento
+                true
+            } else {
+                // Para otros tipos de errores, no reintentamos
+                false
             }
         }
-            .catch { e ->
-                // ✅ 1. CAPTURAMOS CUALQUIER ERROR DE CONEXIÓN O DURANTE LA SESIÓN
-                println("WebSocket: Error en la conexión: ${e.message}")
-                // No hacemos nada más, 'retry' se encargará.
-            }
-            .retry(3) { cause ->
-                // ✅ 2. POLÍTICA DE REINTENTO
-                // Solo reintentamos si el error es de tipo IOException (problema de red).
-                if (cause is java.io.IOException) {
-                    println("WebSocket: Conexión perdida. Reintentando en 5 segundos...")
-                    // Espera 5 segundos antes del siguiente intento.
-                    delay(5000)
-                    // Devuelve 'true' para indicar que queremos reintentar.
-                    return@retry true
-                } else {
-                    // Para otros tipos de errores (ej. JSON malformado que no capturaste antes),
-                    // no reintentamos. Devuelve 'false'.
-                    return@retry false
-                }
-            }
-    }
 
-    // 4. Función para cerrar la conexión cuando ya no se necesite
+    /**
+     * Cierra la conexión WebSocket y libera los recursos del cliente.
+     * 
+     * Debe ser llamado cuando ya no se necesite la conexión para evitar fugas de memoria.
+     */
     fun close() {
         client.close()
     }

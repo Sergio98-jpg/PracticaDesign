@@ -19,41 +19,25 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// --- IMPORTACIÓN CORRECTA PARA LUCIDE ICONS ---
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.CircleAlert
-import com.composables.icons.lucide.Shell
-import com.composables.icons.lucide.Map
-import com.composables.icons.lucide.User
-
-/* -------------------------
-   FABs
-   ------------------------- */
+/**
+ * Preview del botón de acción flotante.
+ */
 @Preview(showBackground = true)
 @Composable
 fun PreviewFloatingActionButton() {
-    FloatingActionButton(icon = null, contentDescription = "Centrar"){}
+    FloatingActionButton(icon = null, contentDescription = "Centrar") {}
 }
-/*
-@Composable
-fun FloatingActionButton(iconPainter: Painter?, contentDescription: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .shadow(6.dp, RoundedCornerShape(12.dp))
-            .background(Color.White, shape = RoundedCornerShape(12.dp))
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        if (iconPainter != null) {
-            Image(painter = iconPainter, contentDescription = contentDescription, modifier = Modifier.size(24.dp))
-        } else {
-            // placeholder icon
-            Text("◎", fontSize = 18.sp)
-        }
-    }
-}
-*/
+
+/**
+ * Botón de acción flotante (FAB) personalizado.
+ * 
+ * Puede mostrar un ícono (ImageVector) o un Painter, o un placeholder si no se proporciona ninguno.
+ * 
+ * @param icon Ícono vectorial a mostrar (tiene prioridad sobre painter)
+ * @param painter Painter a mostrar si no se proporciona icon
+ * @param contentDescription Descripción del contenido para accesibilidad
+ * @param onClick Función a ejecutar cuando se hace clic en el botón
+ */
 @Composable
 fun FloatingActionButton(
     icon: ImageVector? = null,

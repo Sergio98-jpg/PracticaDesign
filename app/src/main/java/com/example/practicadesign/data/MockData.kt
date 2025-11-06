@@ -1,14 +1,20 @@
 package com.example.practicadesign.data
 
-
 import com.example.practicadesign.ui.mapa.componentes.BannerState
-import com.google.android.gms.maps.model.LatLng
 
-// Usamos un 'object' para que sea un Singleton. Solo habrá una instancia
-// de MockData en toda la aplicación.
+/**
+ * Objeto singleton que contiene datos simulados (mock) para desarrollo y testing.
+ * 
+ * Estos datos se utilizan cuando no hay conexión con el backend o para
+ * simular zonas de riesgo y calles inundadas durante el desarrollo.
+ * 
+ * En producción, estos datos serían reemplazados por llamadas reales a la API.
+ */
 object MockData {
 
-    // ✅ La lista de zonas de riesgo simuladas ahora vive aquí.
+    /**
+     * Lista de zonas de riesgo simuladas para testing y desarrollo.
+     */
     val riskZones: List<RiskZone> = listOf(
         RiskZone(
             id = "zone_warning_1",
@@ -27,7 +33,9 @@ object MockData {
         )
     )
 
-    // ✅ La lista de calles inundadas simuladas también vive aquí.
+    /**
+     * Lista de calles inundadas simuladas para testing y desarrollo.
+     */
     val floodedStreets: List<FloodedStreet> = listOf(
         FloodedStreet(
             id = "street_1",
@@ -38,7 +46,4 @@ object MockData {
             path = listOf(SerializableLatLng(19.410, -99.165), SerializableLatLng(19.415, -99.168), SerializableLatLng(19.418, -99.170))
         )
     )
-
-    // En el futuro, podrías añadir más datos de prueba aquí...
-    // val mockUsers: List<User> = listOf(...)
 }

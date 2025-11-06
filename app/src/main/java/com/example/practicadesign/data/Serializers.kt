@@ -1,25 +1,37 @@
 package com.example.practicadesign.data
 
 import com.google.android.gms.maps.model.LatLng
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.*
 
-
-// ... en tu paquete data ...
+/**
+ * Representa una coordenada geográfica serializable.
+ * 
+ * Esta clase es necesaria porque `LatLng` de Google Maps no es serializable
+ * directamente. Se utiliza para serializar/deserializar coordenadas en JSON.
+ * 
+ * @property latitude Latitud de la coordenada
+ * @property longitude Longitud de la coordenada
+ */
 @Serializable
-data class SerializableLatLng(val latitude: Double, val longitude: Double)
+data class SerializableLatLng(
+    val latitude: Double,
+    val longitude: Double
+)
 
-// Función para convertir nuestro modelo al de Google Maps
+/**
+ * Convierte un SerializableLatLng a un LatLng de Google Maps.
+ * 
+ * @return Objeto LatLng de Google Maps
+ */
 fun SerializableLatLng.toGoogleLatLng(): LatLng {
     return LatLng(this.latitude, this.longitude)
 }
 
-// Función para convertir el de Google Maps a nuestro modelo
+/**
+ * Convierte un LatLng de Google Maps a un SerializableLatLng.
+ * 
+ * @return Objeto SerializableLatLng
+ */
 fun LatLng.toSerializableLatLng(): SerializableLatLng {
     return SerializableLatLng(this.latitude, this.longitude)
 }

@@ -19,28 +19,67 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/* -------------------------
-   Stats Cards Row
-   ------------------------- */
+/**
+ * Preview de la fila de estadísticas.
+ */
 @Preview(showBackground = true)
 @Composable
 fun PreviewStatsRow() {
     StatsRow()
 }
+
+/**
+ * Fila de estadísticas que muestra tarjetas con información relevante.
+ * 
+ * Muestra alertas activas y refugios cercanos.
+ * 
+ * Nota: Los valores actualmente están hardcodeados. En una implementación futura,
+ * estos datos deberían venir del ViewModel o del estado de la aplicación.
+ * 
+ * @param modifier Modificador de Compose para personalizar el layout
+ * @param activeAlerts Número de alertas activas (por defecto 1)
+ * @param nearbyShelters Número de refugios cercanos (por defecto 5)
+ */
 @Composable
-fun StatsRow(modifier: Modifier = Modifier) {
+fun StatsRow(
+    modifier: Modifier = Modifier,
+    activeAlerts: Int = 1,
+    nearbyShelters: Int = 5
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        StatCard(number = "1", label = "Alerta activa", type = StatType.ALERT, modifier = Modifier.weight(1f))
-        StatCard(number = "5", label = "Refugios cerca", type = StatType.SHELTER, modifier = Modifier.weight(1f))
-     //   StatCard(number = "12", label = "Zonas seguras", type = StatType.SAFE, modifier = Modifier.weight(1f))
+        StatCard(
+            number = activeAlerts.toString(),
+            label = "Alerta activa",
+            type = StatType.ALERT,
+            modifier = Modifier.weight(1f)
+        )
+        StatCard(
+            number = nearbyShelters.toString(),
+            label = "Refugios cerca",
+            type = StatType.SHELTER,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
+/**
+ * Tipo de estadística a mostrar en las tarjetas.
+ */
 enum class StatType { ALERT, SHELTER, SAFE }
 
+/**
+ * Tarjeta individual de estadística que muestra un número y una etiqueta.
+ * 
+ * El color de la tarjeta varía según el tipo de estadística.
+ * 
+ * @param number Número a mostrar
+ * @param label Etiqueta descriptiva
+ * @param type Tipo de estadística que determina el color
+ * @param modifier Modificador de Compose para personalizar el layout
+ */
 @Composable
 fun StatCard(number: String, label: String, type: StatType, modifier: Modifier = Modifier) {
     val color = when (type) {
@@ -53,8 +92,7 @@ fun StatCard(number: String, label: String, type: StatType, modifier: Modifier =
         modifier = modifier
             .shadow(8.dp, RoundedCornerShape(16.dp))
             .background(Color.White, shape = RoundedCornerShape(16.dp))
-            .padding(vertical = 8.dp).size(height = 50.dp, width = 10.dp)
-        ,
+            .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(number, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = color)

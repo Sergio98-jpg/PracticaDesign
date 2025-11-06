@@ -7,7 +7,16 @@ import io.ktor.client.plugins.logging.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
-// Usamos un 'object' para tener una única instancia (Singleton) del cliente.
+/**
+ * Cliente HTTP singleton de Ktor configurado para la aplicación.
+ * 
+ * Este objeto proporciona un cliente HTTP único y compartido con:
+ * - Configuración de deserialización JSON automática
+ * - Logging de peticiones HTTP para depuración
+ * - Manejo de claves desconocidas en respuestas JSON
+ * 
+ * Utiliza el motor Android de Ktor para realizar las peticiones HTTP.
+ */
 object KtorClient {
 
     val httpClient = HttpClient(Android) {

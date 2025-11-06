@@ -17,14 +17,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
-/* -------------------------
-   Floating Menu Button
-   ------------------------- */
+/**
+ * Preview del botón de menú flotante.
+ */
 @Preview(showBackground = true)
 @Composable
 fun PreviewFloatingMenu() {
     FloatingMenu(onClick = {})
 }
+
+/**
+ * Botón de menú flotante que muestra tres líneas horizontales.
+ * 
+ * Se utiliza para abrir el menú lateral de la aplicación.
+ * 
+ * @param onClick Función a ejecutar cuando se hace clic en el botón
+ * @param modifier Modificador de Compose para personalizar el layout
+ */
 @Composable
 fun FloatingMenu(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(

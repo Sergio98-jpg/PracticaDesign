@@ -21,13 +21,17 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-/* -------------------------
-   User Location (dot + pulse)
-   ------------------------- */
-
+/**
+ * Componente visual de ubicación del usuario con efecto de pulso.
+ * 
+ * Muestra un punto que representa la ubicación del usuario con una animación
+ * de pulso que crece y se desvanece repetidamente.
+ * 
+ * @param modifier Modificador de Compose para personalizar el layout
+ */
 @Composable
 fun UserLocation(modifier: Modifier = Modifier) {
-    // pulse animation for outer ring
+    // Animación de pulso para el anillo exterior
     val infinite = rememberInfiniteTransition(label = "pulse")
     val pulse by infinite.animateFloat(
         initialValue = 0f,
@@ -43,7 +47,7 @@ fun UserLocation(modifier: Modifier = Modifier) {
         modifier = modifier.size(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Outer pulse - grows from 16 -> 60 with fading alpha
+        // Anillo de pulso exterior - crece de 16 a 60 con alpha que se desvanece
         Canvas(modifier = Modifier.size(60.dp), onDraw = {
             val maxRadius = size.minDimension / 2f
             val radius = androidx.compose.ui.util.lerp(8f, maxRadius, pulse)

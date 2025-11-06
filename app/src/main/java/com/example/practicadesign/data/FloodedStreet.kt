@@ -1,19 +1,19 @@
 package com.example.practicadesign.data
 
-import com.google.android.gms.maps.model.LatLng
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 
-/* -------------------------
-   Calles (Estructura)
-   ------------------------- */
+/**
+ * Representa una calle inundada en el mapa.
+ * 
+ * Una calle inundada está definida por una ruta (polilínea) formada
+ * por una lista de coordenadas.
+ * 
+ * @property id Identificador único de la calle inundada
+ * @property path Lista de coordenadas que forman la ruta de la calle inundada
+ */
 @Serializable
 data class FloodedStreet(
     val id: String,
-    val path: List<SerializableLatLng> // ✅ Usa la clase que sí es serializable
+    val path: List<SerializableLatLng>
 )
 

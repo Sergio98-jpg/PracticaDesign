@@ -5,146 +5,82 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.keyframes
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.GenericShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import com.example.practicadesign.ui.theme.PracticaDesignTheme
-
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.times
-import androidx.compose.ui.zIndex
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
-import androidx.xr.compose.testing.toDp
-import kotlinx.coroutines.delay
-import kotlin.random.Random
-
-//Nuevo
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.practicadesign.ui.main.MainViewModel
 import com.example.practicadesign.ui.navegacion.AppNavigation
 import com.example.practicadesign.ui.splash.SplashYaanalHaHybrid
+import com.example.practicadesign.ui.theme.PracticaDesignTheme
 
 
+/**
+ * MainActivity es la actividad principal de la aplicación.
+ * Se encarga de la configuración inicial y la configuración del sistema de ventanas.
+ */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-
-        // Llama al splash nativo. Se mostrará brevemente y luego dará paso a tu Composable.
-        installSplashScreen()
-
         super.onCreate(savedInstanceState)
+        
+        // Instala el splash screen nativo de Android.
+        // Se mostrará brevemente antes de que se renderice el contenido de Compose.
+        installSplashScreen()
+        
+        // Configura el sistema de ventanas para que el contenido se ajuste correctamente
         WindowCompat.setDecorFitsSystemWindows(window, true)
-
+        
+        // Habilita el modo edge-to-edge para que la app use toda la pantalla
         enableEdgeToEdge()
+        
         setContent {
-            // Ahora, setContent solo llama a UNA función Composable principal.
+            // Función Composable principal que contiene toda la UI de la aplicación
             PracticaDesignApp()
         }
     }
 }
+/**
+ * Función Composable principal de la aplicación.
+ * Gestiona el estado del splash screen y la navegación principal usando MVVM.
+ * 
+ * Utiliza MainViewModel para gestionar el estado del splash screen,
+ * siguiendo el patrón de arquitectura MVVM establecido en la aplicación.
+ */
 @Preview(showBackground = true)
 @Composable
-fun PracticaDesignApp() {
-
-    // En una app real, aquí es donde iniciarías la carga de datos desde un ViewModel.
-    // Por ejemplo: viewModel.startInitialLoad()
-    // El `uiState` estaría en ese ViewModel, expuesto a través de un StateFlow.
-    val uiState by produceState<Boolean>(initialValue = false) {
-        delay(2000) // Aumenté el tiempo para que puedas ver mejor tu splash
-        value = true
-    }
+fun PracticaDesignApp(
+    viewModel: MainViewModel = viewModel()
+) {
+    // Observa el estado del splash screen desde el ViewModel
+    val isSplashVisible by viewModel.isSplashVisible.collectAsState()
 
     PracticaDesignTheme {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Muestra el splash screen con animación de entrada/salida
             AnimatedVisibility(
-                visible = !uiState,
+                visible = isSplashVisible,
                 enter = fadeIn(animationSpec = tween(800)),
                 exit = fadeOut(animationSpec = tween(800))
             ) {
-               // SplashScreen()
-               // SplashYaanalHaScreen()
                 SplashYaanalHaHybrid()
             }
 
+            // Muestra la navegación principal cuando el splash se oculta
             AnimatedVisibility(
-                visible = uiState,
+                visible = !isSplashVisible,
                 enter = fadeIn(animationSpec = tween(800))
             ) {
                 AppNavigation()
-/*                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }*/
             }
         }
     }
 }
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-
-@Composable
-fun GreetingPreview() {
-    PracticaDesignTheme {
-        Greeting("Android")
-    }
-}
-
-
-

@@ -2,6 +2,7 @@ package com.example.practicadesign.ui.mapa.componentes
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,66 +11,57 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-
-import androidx.compose.material3.Icon
-import androidx.compose.ui.graphics.vector.ImageVector
-
-// --- IMPORTACIÓN CORRECTA PARA LUCIDE ICONS ---
- import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.CircleAlert
-import com.composables.icons.lucide.Map
-import com.composables.icons.lucide.User
-
-
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material3.Icon
-import com.composables.icons.lucide.House
-
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.unit.em
-
-
-import androidx.compose.foundation.interaction.MutableInteractionSource // <-- AÑADE ESTE IMPORT
-import androidx.compose.runtime.remember // <-- AÑADE ESTE IMPORT
-import androidx.compose.foundation.shape.CircleShape // <-- AÑADE ESTE IMPORT
-import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.ripple
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.composables.icons.lucide.Newspaper
-import com.composables.icons.lucide.Pencil
-
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.text.font.FontFamily
+import androidx.navigation.compose.rememberNavController
+import com.composables.icons.lucide.CircleAlert
+import com.composables.icons.lucide.House
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Map
+import com.composables.icons.lucide.Pencil
+import com.composables.icons.lucide.User
 import com.example.practicadesign.ui.navegacion.Screen
 
-/* -------------------------
-   Bottom Navigation
-   ------------------------- */
-import androidx.compose.ui.platform.LocalContext
-import androidx.navigation.compose.rememberNavController
-
+/**
+ * Componente de navegación inferior (Bottom Navigation Bar).
+ * 
+ * Muestra los elementos principales de navegación de la aplicación:
+ * - Mapa (siempre visible)
+ * - Alertas (solo para usuarios logueados)
+ * - Refugios (siempre visible)
+ * - Reporte (siempre visible, redirige a Login si no hay usuario)
+ * - Perfil (siempre visible, redirige a Login)
+ * 
+ * @param modifier Modificador de Compose para personalizar el layout
+ * @param navController Controlador de navegación para moverse entre pantallas
+ * @param userRole Rol del usuario actual (null si no está logueado)
+ */
 @Preview(showBackground = true, name = "BottomNav - Usuario Invitado")
 @Composable
 fun PreviewBottomNavGuest() {
     BottomNav(
-        // Para la preview, no necesitas un modifier especial
         modifier = Modifier,
-        // ✅ Crea un NavController falso para la preview
         navController = rememberNavController(),
-        // ✅ Simula un usuario que NO ha iniciado sesión
         userRole = null
     )
 }
@@ -80,22 +72,21 @@ fun PreviewBottomNavLoggedIn() {
     BottomNav(
         modifier = Modifier,
         navController = rememberNavController(),
-        // ✅ Simula un usuario que SÍ ha iniciado sesión
         userRole = "user"
     )
 }
-//@Composable
-// fun BottomNav( modifier: Modifier = Modifier) {
+
 @Composable
 fun BottomNav(
     modifier: Modifier = Modifier,
-    navController: NavController, // ✅ 1. Recibe el NavController para poder navegar
-    userRole: String? // ✅ 2. Recibe el rol del usuario (puede ser null)
-){
-    // ✅ 3. Obtenemos la ruta actual para saber qué ítem está activo
+    navController: NavController,
+    userRole: String?
+) {
+    // Obtiene la ruta actual para saber qué ítem está activo
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-Row(
+
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .shadow(4.dp)
@@ -104,107 +95,113 @@ Row(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-/*        BottomNavItem(active = true,  label = "Mapa",      icon = Icons.Filled.Place)
-        BottomNavItem(active = false, label = "Alertas",   icon = Icons.Filled.Notifications, badge = "1")
-        BottomNavItem(active = false, label = "Refugios",  icon = Icons.Filled.Home)
-        BottomNavItem(active = false, label = "Perfil",    icon = Icons.Filled.Person)
-        BottomNavItem(active = true,  label = "Mapa",      icon = Lucide.Map)
-        BottomNavItem(active = false, label = "Alertas",   icon = Lucide.CircleAlert, badge = "1")
-        BottomNavItem(active = false, label = "Refugios",  icon = Lucide.House)
-        BottomNavItem(active = false, label = "Reporte",  icon = Lucide.Pencil)
-        BottomNavItem(active = false, label = "Perfil",    icon = Lucide.User)*/
-
-    // Ítem del Mapa
-    BottomNavItem(
-        active = currentRoute == Screen.Mapa.route, // Activo si la ruta actual es la del mapa
-        label = "Mapa",
-        icon = Lucide.Map,
-        onClick = { navController.navigate(Screen.Mapa.route){
-            // ✅ Evita crear una nueva copia del mapa si ya está en la pila
-            launchSingleTop = true
-            // ✅ Restaura el estado al volver a esta pantalla
-            restoreState = true
-        } } // Navega al mapa
-    )
-
-    // Ítem de Alertas (Supongamos que es solo para usuarios logueados)
-    if (userRole != null) {
+        // Ítem del Mapa
         BottomNavItem(
-            active =  false, //currentRoute == Screen.Alerts.route,
-            label = "Alertas",
-            icon = Lucide.CircleAlert,
-            badge = "1",
-            onClick = { /*navController.navigate(Screen.Alerts.route)*/ }
-        )
-    }
-
-    // Ítem de Refugios
-    BottomNavItem(
-        active = currentRoute == Screen.Shelters.route,
-        label = "Refugios",
-        icon = Lucide.House,
-        onClick = { navController.navigate(Screen.Shelters.route){
-            // ✅ Evita crear una nueva copia del mapa si ya está en la pila
-            launchSingleTop = true
-            // ✅ Restaura el estado al volver a esta pantalla
-            restoreState = true
-        } }
-    )
-
-    // Ítem de Reporte (El que inicia el login si no se ha hecho)
-    BottomNavItem(
-        active = false, // Este botón nunca está "activo" como una pantalla
-        label = "Reporte",
-        icon = Lucide.Pencil,
-        onClick = {
-            // LÓGICA CLAVE: Si no hay usuario, va al Login. Si hay, va a la pantalla de crear reporte.
-            if (userRole == null) {
-                navController.navigate(Screen.Login.route)
-            } else {
-                 navController.navigate(Screen.Report.route) // Futura pantalla
+            active = currentRoute == Screen.Mapa.route,
+            label = "Mapa",
+            icon = Lucide.Map,
+            onClick = {
+                navController.navigate(Screen.Mapa.route) {
+                    launchSingleTop = true
+                    restoreState = true
+                }
             }
-        }
-    )
+        )
 
-    // Ítem de Perfil (Supongamos que es solo para usuarios logueados)
-//    if (userRole != null) {
+        // Ítem de Alertas (solo para usuarios logueados)
+        if (userRole != null) {
+            BottomNavItem(
+                active = false,
+                label = "Alertas",
+                icon = Lucide.CircleAlert,
+                badge = "1",
+                onClick = {
+                    // TODO: Implementar navegación a pantalla de alertas cuando esté disponible
+                }
+            )
+        }
+
+        // Ítem de Refugios
+        BottomNavItem(
+            active = currentRoute == Screen.Shelters.route,
+            label = "Refugios",
+            icon = Lucide.House,
+            onClick = {
+                navController.navigate(Screen.Shelters.route) {
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        )
+
+        // Ítem de Reporte
+        BottomNavItem(
+            active = false,
+            label = "Reporte",
+            icon = Lucide.Pencil,
+            onClick = {
+                // Si no hay usuario, va al Login. Si hay, va a la pantalla de crear reporte
+                if (userRole == null) {
+                    navController.navigate(Screen.Login.route)
+                } else {
+                    navController.navigate(Screen.Report.route)
+                }
+            }
+        )
+
+        // Ítem de Perfil
         BottomNavItem(
             active = currentRoute == Screen.Login.route,
             label = "Perfil",
             icon = Lucide.User,
-            onClick = { navController.navigate(Screen.Login.route){
-                // ✅ Evita crear una nueva copia del mapa si ya está en la pila
-                launchSingleTop = true
-                // ✅ Restaura el estado al volver a esta pantalla
-                restoreState = true
-            } }
+            onClick = {
+                navController.navigate(Screen.Login.route) {
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
         )
- //   }
     }
 }
 
+/**
+ * Item individual de la barra de navegación inferior.
+ * 
+ * Muestra un ícono, una etiqueta y opcionalmente un badge.
+ * Cambia de color según si está activo o no.
+ * 
+ * @param active Indica si este ítem está activo (pantalla actual)
+ * @param label Texto a mostrar debajo del ícono
+ * @param badge Texto opcional del badge a mostrar en la esquina superior derecha
+ * @param icon Ícono a mostrar
+ * @param onClick Función a ejecutar cuando se hace clic en el ítem
+ * @param modifier Modificador de Compose para personalizar el layout
+ */
 @Composable
-fun BottomNavItem(active: Boolean, label: String, badge: String? = null, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun BottomNavItem(
+    active: Boolean,
+    label: String,
+    badge: String? = null,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Box(
-        contentAlignment = Alignment.Center, // Centrará el contenido visual (icono y texto)
+        contentAlignment = Alignment.Center,
         modifier = modifier
-            // 2. DEFINE EL ÁREA DE TOQUE GRANDE Y EL RIPPLE AQUÍ.
-            .size(width = 64.dp, height = 56.dp) // Un área generosa pero no exagerada
+            .size(width = 64.dp, height = 56.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(
-                    bounded = false, // ¡Esencial para el efecto de halo!
-                    radius = 30.dp,  // Un radio grande y agradable
+                    bounded = false,
+                    radius = 30.dp,
                     color = Color(0xFF0891B2)
                 ),
                 onClick = onClick
             )
-    )  {
-        // 3. DENTRO DEL BOX DE TOQUE, COLOCA EL CONTENIDO VISUAL.
-        //    Este Column ya no tiene el clickable.
+    ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            // Vertical arrangement para que no haya espacio extra
             verticalArrangement = Arrangement.Center
         ) {
             Box(contentAlignment = Alignment.TopEnd) {
@@ -215,6 +212,7 @@ fun BottomNavItem(active: Boolean, label: String, badge: String? = null, icon: I
                     modifier = Modifier.size(24.dp)
                 )
 
+                // Badge opcional para mostrar notificaciones o contadores
                 if (badge != null) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -241,9 +239,7 @@ fun BottomNavItem(active: Boolean, label: String, badge: String? = null, icon: I
                 label,
                 fontSize = 11.sp,
                 color = if (active) Color(0xFF0891B2) else Color(0xFF94A3B8),
-                fontWeight = FontWeight.Medium,
-                // Puedes añadir un padding mínimo si lo ves necesario
-                // modifier = Modifier.padding(top = 2.dp)
+                fontWeight = FontWeight.Medium
             )
         }
     }

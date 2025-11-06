@@ -12,13 +12,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 
-/* -------------------------
-   Map Grid
-   ------------------------- */
-
+/**
+ * Componente de cuadrícula animada para el fondo del mapa.
+ * 
+ * Crea una cuadrícula animada que se mueve suavemente para dar
+ * un efecto visual de profundidad al mapa.
+ * 
+ * @param modifier Modificador de Compose para personalizar el layout
+ */
 @Composable
 fun MapGrid(modifier: Modifier = Modifier) {
-    // We'll animate a translation of the grid for the "moving grid" effect
+    // Anima la traducción de la cuadrícula para el efecto de "cuadrícula en movimiento"
     val infinite = rememberInfiniteTransition(label = "gridMove")
     val offset by infinite.animateFloat(
         initialValue = 0f,
@@ -30,8 +34,8 @@ fun MapGrid(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        val cell = 60f  // grid spacing (px)
-        // draw a subtle background underlying map
+        val cell = 60f // Espaciado de la cuadrícula en píxeles
+        // Dibuja un fondo sutil debajo del mapa
         drawRect(color = Color(0xFFE0F2F1))
 
         val paintAlpha = 0.15f

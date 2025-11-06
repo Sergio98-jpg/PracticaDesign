@@ -10,17 +10,24 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 
-/* -------------------------
-   Risk Zone (radial blurred gradient)
-   ------------------------- */
-
+/**
+ * Componente visual de zona de riesgo con gradiente radial.
+ * 
+ * Simula un efecto de desenfoque usando un gradiente radial que se desvanece
+ * desde el centro hacia afuera. Se utiliza para representar visualmente
+ * zonas de riesgo en el mapa.
+ * 
+ * @param modifier Modificador de Compose para personalizar el layout
+ * @param color Color base del gradiente
+ * @param alpha Transparencia del gradiente (por defecto 0.4)
+ */
 @Composable
 fun RiskZone(modifier: Modifier = Modifier, color: Color, alpha: Float = 0.4f) {
-    // We can't rely on platform blur uniformly; we simulate with large faded radial gradient
+    // Simula un efecto de desenfoque usando un gradiente radial grande que se desvanece
     Box(
         modifier = modifier
             .graphicsLayer {
-                // on API 31+ you could set RenderEffect blur; but we simulate using alpha & gradient
+                // Nota: En API 31+ se podría usar RenderEffect blur, pero simulamos con alpha y gradiente
                 shadowElevation = 0f
                 clip = false
             }

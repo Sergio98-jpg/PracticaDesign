@@ -24,15 +24,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.animation.core.animateDpAsState // <-- ¡AÑADE ESTE IMPORT!
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.runtime.getValue // <-- ¡AÑADE ESTE IMPORT!
-
-
-
-/* -------------------------
-   Side Menu (drawer)
-   ------------------------- */
+import androidx.compose.runtime.getValue
 @Preview(showBackground = true)
 @Composable
 fun PreviewSideMenu() {
@@ -40,27 +34,26 @@ fun PreviewSideMenu() {
 }
 
 /**
- * Este Composable `SideMenu` crea un menú lateral deslizable (drawer).
- * El menú puede estar en estado abierto o cerrado, y se anima suavemente hacia adentro y
- * hacia afuera de la pantalla. Contiene un encabezado, un botón para cerrar y una lista de
- * elementos de menú.
+ * Menú lateral deslizable (drawer) de la aplicación.
+ * 
+ * El menú puede estar en estado abierto o cerrado, y se anima suavemente
+ * hacia adentro y hacia afuera de la pantalla. Contiene un encabezado,
+ * un botón para cerrar y una lista de elementos de menú.
  *
- * @param open Un valor booleano que determina si el menú está visible (`true`) u oculto (`false`).
+ * @param open Valor booleano que determina si el menú está visible (true) u oculto (false).
  *             Este estado controla la animación de deslizamiento.
- * @param onClose Una función lambda que se invoca cuando el usuario hace clic en el botón de
- *                cierre (la '✕'). Es responsabilidad del llamador cambiar el estado `open` a `false`.
- * @param modifier Un [Modifier] opcional para aplicar al contenedor principal del menú.
+ * @param onClose Función lambda que se invoca cuando el usuario hace clic en el botón de cierre.
+ *                Es responsabilidad del llamador cambiar el estado `open` a `false`.
+ * @param modifier Modificador de Compose opcional para aplicar al contenedor principal del menú.
  */
 @Composable
 fun SideMenu(open: Boolean, onClose: () -> Unit, modifier: Modifier = Modifier) {
-    // Anima el desplazamiento horizontal (offset) del menú.
-    // Si `open` es true, el offset es 0.dp (totalmente visible).
-    // Si `open` es false, se desplaza 320.dp hacia la derecha, ocultándose fuera de la pantalla.
+    // Anima el desplazamiento horizontal del menú
+    // Si `open` es true, el offset es 0.dp (totalmente visible)
+    // Si `open` es false, se desplaza 320.dp hacia la derecha, ocultándose fuera de la pantalla
     val offsetX by animateDpAsState(
         targetValue = if (open) 0.dp else 320.dp,
         label = "sideMenuOffsetX",
-
-        // Especifica la animación: una transición suave de 200ms.
         animationSpec = tween(
             durationMillis = 200,
             easing = androidx.compose.animation.core.EaseInOut
@@ -72,36 +65,59 @@ fun SideMenu(open: Boolean, onClose: () -> Unit, modifier: Modifier = Modifier) 
         modifier = modifier
             .fillMaxHeight()
             .width(320.dp)
-            .offset(x = offsetX) // Aplica el desplazamiento animado.
-            .shadow(8.dp) // Añade una sombra para dar profundidad.
-            .background(Color.White) // Establece el color de fondo del menú.
+            .offset(x = offsetX)
+            .shadow(8.dp)
+            .background(Color.White)
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
-            // Cabecera del menú con el título y el botón de cierre.
+            // Cabecera del menú con el título y el botón de cierre
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Menú", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                // Botón de cierre. Al hacer clic, se llama a la función `onClose`.
-                Box(modifier = Modifier
-                    .size(32.dp)
-                    .clickable { onClose() }, contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Menú",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A)
+                )
+                // Botón de cierre
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clickable { onClose() },
+                    contentAlignment = Alignment.Center
+                ) {
                     Text("✕", fontSize = 18.sp)
                 }
             }
             Spacer(Modifier.height(16.dp))
 
-            // Lista de elementos del menú.
-            val items = listOf("Mi Perfil", "Configuración", "Notificaciones", "Historial de Alertas", "Acerca de", "Ayuda", "Cerrar Sesión")
+            // Lista de elementos del menú
+            val items = listOf(
+                "Mi Perfil",
+                "Configuración",
+                "Notificaciones",
+                "Historial de Alertas",
+                "Acerca de",
+                "Ayuda",
+                "Cerrar Sesión"
+            )
             items.forEach { item ->
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
-                    .clickable { /* TODO: Implementar la navegación para cada elemento */ }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp)
+                        .clickable {
+                            // TODO: Implementar la navegación para cada elemento del menú
+                        }
                 ) {
-                    Text(item, fontSize = 16.sp, color = Color(0xFF334155))
+                    Text(
+                        text = item,
+                        fontSize = 16.sp,
+                        color = Color(0xFF334155)
+                    )
                 }
             }
         }

@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -38,32 +38,16 @@ import com.composables.icons.lucide.Route
 import com.composables.icons.lucide.Users
 import com.example.practicadesign.data.RiskZone
 import com.example.practicadesign.data.Shelter
-import com.google.android.gms.maps.model.LatLng
 
+/**
+ * Preview para el contenido de información de zona de riesgo en estado de peligro.
+ */
 @Preview(showBackground = true, name = "Zona de Peligro")
 @Composable
 fun PreviewZoneRiskInfoContentDanger() {
-    // 1. Crea un objeto RiskZone de ejemplo para el estado "Danger"
     val sampleZone = RiskZone(
         id = "zone_danger_1",
-        state = BannerState.Danger, // Estado de peligro
-        area = emptyList() // El área no es necesaria para la preview del contenido
-    )
-
-    // 2. Pasa el objeto de ejemplo al Composable
-    ZoneRiskInfoContent(
-        zone = sampleZone,
-        modifier = Modifier.fillMaxWidth()
-    )
-}
-/*
-@Preview(showBackground = true, name = "Zona en Advertencia")
-@Composable
-fun PreviewZoneRiskInfoContentWarning() {
-    // Puedes crear múltiples previews para diferentes estados
-    val sampleZone = RiskZone(
-        id = "zone_warning_1",
-        state = BannerState.Warning, // Estado de advertencia
+        state = BannerState.Danger,
         area = emptyList()
     )
     ZoneRiskInfoContent(
@@ -72,68 +56,22 @@ fun PreviewZoneRiskInfoContentWarning() {
     )
 }
 
-@Preview(showBackground = true, name = "Refugio Abierto")
-@Composable
-fun PreviewShelterInfoContentOpen() {
-    // 1. Crea un objeto Shelter de ejemplo para el estado "Abierto"
-    val sampleShelter = Shelter(
-        id = "shelter_1",
-        name = "Refugio Deportivo Benito Juárez",
-        address = "Calle 123, Colonia Centro, Mérida, Yucatán",
-        position = LatLng(20.9674, -89.6243), // La posición no es visible aquí, pero es necesaria
-        capacity = 150,
-        currentOccupancy = 95,
-        isOpen = true // Estado Abierto
-    )
-
-    // 2. Pasa el objeto de ejemplo al Composable
-    ShelterInfoContent(
-        shelter = sampleShelter,
-        modifier = Modifier.fillMaxWidth()
-    )
-}*/
-/*
-@Preview(showBackground = true, name = "Refugio Cerrado")
-@Composable
-fun PreviewShelterInfoContentClosed() {
-    // 1. Crea otro objeto Shelter para el estado "Cerrado"
-    val sampleShelter = Shelter(
-        id = "shelter_2",
-        name = "Escuela Primaria Leona Vicario",
-        address = "Calle 50 por 61 y 63, Centro",
-        position = LatLng(20.9674, -89.6243),
-        capacity = 80,
-        currentOccupancy = 0,
-        isOpen = false // Estado Cerrado
-    )
-    ShelterInfoContent(
-        shelter = sampleShelter,
-        modifier = Modifier.fillMaxWidth()
-    )
-}
-
-@Preview(showBackground = true, name = "Fila de Información (InfoRow)")
-@Composable
-fun PreviewInfoRow() {
-    InfoRow(
-        icon = Lucide.MapPin, // Pasa un icono de ejemplo de Lucide
-        title = "Dirección",
-        content = "Av. de los Insurgentes Sur 300, Colonia Roma"
-    )
-}*/
+/**
+ * Muestra el contenido de información de una zona de riesgo en el bottom sheet.
+ * 
+ * Incluye el nivel de riesgo, una descripción y un botón para ver refugios cercanos.
+ * 
+ * @param zone La zona de riesgo a mostrar
+ * @param modifier Modificador de Compose para personalizar el layout
+ */
 @Composable
 fun ZoneRiskInfoContent(zone: RiskZone, modifier: Modifier = Modifier) {
-/*    val (estadoTexto, colorEstado) = when (zone.state) {
-        BannerState.Safe -> "Zona segura" to Color(0xFF10B981)      // Verde
-        BannerState.Warning -> "Zona en advertencia" to Color(0xFFFBBF24) // Amarillo
-        BannerState.Danger -> "Zona en peligro" to Color(0xFF991B1B) // Rojo
-    }*/
     val (estadoTexto, colorEstado, colorTexto) = when (zone.state) {
-        BannerState.Safe -> Triple("Zona segura", Color(0xFF10B981), Color(0xFF065F46))      // Verde + texto verde oscuro
-        BannerState.Warning -> Triple("Zona en advertencia", Color(0xFFFDF7E7), Color(0xFF8F4617)) // Amarillo + texto ámbar oscuro
-        BannerState.Danger -> Triple("Zona en peligro", Color(0xFFFFEBEE), Color(0xFF991B1B)) // Rojo + texto claro
+        BannerState.Safe -> Triple("Zona segura", Color(0xFF10B981), Color(0xFF065F46))
+        BannerState.Warning -> Triple("Zona en advertencia", Color(0xFFFDF7E7), Color(0xFF8F4617))
+        BannerState.Danger -> Triple("Zona en peligro", Color(0xFFFFEBEE), Color(0xFF991B1B))
     }
-    //991b1b 0xFF991B1B
+
     Column(modifier = modifier.padding(16.dp)) {
         Text(
             text = "Nivel de riesgo",
@@ -146,8 +84,8 @@ fun ZoneRiskInfoContent(zone: RiskZone, modifier: Modifier = Modifier) {
 
         Box(
             modifier = Modifier
-                .background(colorEstado, shape = RoundedCornerShape(40)) // pill shape
-                .border(1.dp, colorTexto, RoundedCornerShape(40)) // borde opcional
+                .background(colorEstado, shape = RoundedCornerShape(40))
+                .border(1.dp, colorTexto, RoundedCornerShape(40))
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -158,12 +96,6 @@ fun ZoneRiskInfoContent(zone: RiskZone, modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.labelLarge
             )
         }
-/*        Text(
-            text = estadoTexto,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = colorEstado
-        )*/
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -178,16 +110,16 @@ fun ZoneRiskInfoContent(zone: RiskZone, modifier: Modifier = Modifier) {
         )
 
         Button(
-            onClick = { /* TODO: Implementar Fase 4 - Trazar Ruta */ },
+            onClick = {
+                // TODO: Implementar navegación a lista de refugios cercanos cuando esté disponible
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
-                //0e7490
-                    // ✅ Y la configuración de color se pone aquí
             colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF0E7490), // Tu color cian oscuro
-            contentColor = Color.White // El color para el texto y el icono
-        )
+                containerColor = Color(0xFF0E7490),
+                contentColor = Color.White
+            )
         ) {
             Icon(Lucide.House, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
@@ -196,7 +128,15 @@ fun ZoneRiskInfoContent(zone: RiskZone, modifier: Modifier = Modifier) {
     }
 }
 
-// ✅ AÑADE ESTE NUEVO COMPOSABLE DE CONTENIDO (aún es un borrador)
+/**
+ * Muestra el contenido de información de un refugio en el bottom sheet.
+ * 
+ * Incluye el nombre, estado (abierto/cerrado), dirección, capacidad y un botón
+ * para trazar la ruta hacia el refugio.
+ * 
+ * @param shelter El refugio a mostrar
+ * @param modifier Modificador de Compose para personalizar el layout
+ */
 @Composable
 fun ShelterInfoContent(shelter: Shelter, modifier: Modifier = Modifier) {
     Column(
@@ -229,7 +169,7 @@ fun ShelterInfoContent(shelter: Shelter, modifier: Modifier = Modifier) {
         }
 
         // Divisor
-        Divider()
+        HorizontalDivider()
 
         // Fila de Dirección
         InfoRow(icon = Lucide.MapPin, title = "Dirección", content = shelter.address)
@@ -239,7 +179,9 @@ fun ShelterInfoContent(shelter: Shelter, modifier: Modifier = Modifier) {
 
         // Botón principal
         Button(
-            onClick = { /* TODO: Implementar Fase 4 - Trazar Ruta */ },
+            onClick = {
+                // TODO: Implementar apertura de Google Maps con navegación al refugio
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)
@@ -251,7 +193,13 @@ fun ShelterInfoContent(shelter: Shelter, modifier: Modifier = Modifier) {
     }
 }
 
-// Pequeño Composable de ayuda para no repetir código
+/**
+ * Componente reutilizable para mostrar una fila de información con ícono, título y contenido.
+ * 
+ * @param icon Ícono a mostrar a la izquierda
+ * @param title Título de la información
+ * @param content Contenido de la información
+ */
 @Composable
 fun InfoRow(icon: ImageVector, title: String, content: String) {
     Row(verticalAlignment = Alignment.Top) {
