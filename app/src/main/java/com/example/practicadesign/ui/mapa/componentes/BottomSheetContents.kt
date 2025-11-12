@@ -68,11 +68,6 @@ fun PreviewZoneRiskInfoContentDanger() {
  */
 @Composable
 fun ZoneRiskInfoContent(zone: RiskZone, modifier: Modifier = Modifier) {
-/*    val (estadoTexto, colorEstado, colorTexto) = when (zone.state) {
-        BannerState.Safe -> Triple("Zona segura", Color(0xFF10B981), Color(0xFF065F46))
-        BannerState.Warning -> Triple("Zona en advertencia", Color(0xFFFDF7E7), Color(0xFF8F4617))
-        BannerState.Danger -> Triple("Zona en peligro", Color(0xFFFFEBEE), Color(0xFF991B1B))
-    }*/
     val (estadoTexto, colorEstado, colorTexto) = when (zone.riskLevel.uppercase()) {
         "BAJO" -> Triple("Zona segura", Color(0xFF10B981), Color(0xFF065F46))
         "MEDIO" -> Triple("Zona en advertencia", Color(0xFFFDF7E7), Color(0xFF8F4617))
@@ -108,11 +103,6 @@ fun ZoneRiskInfoContent(zone: RiskZone, modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-/*            text = when (zone.state) {
-                BannerState.Safe -> "Esta área es considerada segura actualmente."
-                BannerState.Warning -> "Precaución: hay posibles riesgos en esta zona."
-                BannerState.Danger -> "Peligro: área con alto riesgo de inundación. Se recomienda evacuar inmediatamente y dirigirse al refugio más cercano."
-            }*/
             text = when (zone.riskLevel.uppercase()) {
                 "BAJO" -> "Esta área es considerada segura actualmente."
                 "MEDIO" -> "Precaución: hay posibles riesgos en esta zona. Mantente informado."

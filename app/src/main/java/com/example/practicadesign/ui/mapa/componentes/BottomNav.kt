@@ -150,14 +150,24 @@ fun BottomNav(
         )
 
         // Ítem de Perfil
+        // Si el usuario está logueado, va a Profile. Si no, va a Login.
         BottomNavItem(
-            active = currentRoute == Screen.Login.route,
+            active = currentRoute == Screen.Profile.route,
             label = "Perfil",
             icon = Lucide.User,
             onClick = {
-                navController.navigate(Screen.Login.route) {
-                    launchSingleTop = true
-                    restoreState = true
+                if (userRole == null) {
+                    // Si no hay usuario, va al Login
+                    navController.navigate(Screen.Login.route) {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                } else {
+                    // Si hay usuario (admin o user), va a Profile
+                    navController.navigate(Screen.Profile.route) {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 }
             }
         )

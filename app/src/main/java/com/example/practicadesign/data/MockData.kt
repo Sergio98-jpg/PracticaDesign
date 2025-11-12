@@ -1,37 +1,17 @@
 package com.example.practicadesign.data
 
-import com.example.practicadesign.ui.mapa.componentes.BannerState
-
 /**
  * Objeto singleton que contiene datos simulados (mock) para desarrollo y testing.
  * 
  * Estos datos se utilizan cuando no hay conexión con el backend o para
- * simular zonas de riesgo y calles inundadas durante el desarrollo.
+ * simular calles inundadas durante el desarrollo.
+ * 
+ * Nota: Las zonas de riesgo ahora se obtienen desde el backend mediante
+ * el método `getRiskZones()` del `MapRepository`.
  * 
  * En producción, estos datos serían reemplazados por llamadas reales a la API.
  */
 object MockData {
-
-    /**
-     * Lista de zonas de riesgo simuladas para testing y desarrollo.
-     */
-/*    val riskZones: List<RiskZone> = listOf(
-        RiskZone(
-            id = "zone_warning_1",
-            area = listOf(SerializableLatLng(19.45, -99.15), SerializableLatLng(19.45, -99.14), SerializableLatLng(19.44, -99.14), SerializableLatLng(19.44, -99.15)),
-            state = BannerState.Warning
-        ),
-        RiskZone(
-            id = "zone_danger_1",
-            area = listOf(SerializableLatLng(19.42, -99.17), SerializableLatLng(19.42, -99.16), SerializableLatLng(19.41, -99.16), SerializableLatLng(19.41, -99.17)),
-            state = BannerState.Danger
-        ),
-        RiskZone(
-            id = "zone_danger_2",
-            area = listOf(SerializableLatLng(19.44, -99.14), SerializableLatLng(19.44, -99.13), SerializableLatLng(19.43, -99.13), SerializableLatLng(19.43, -99.14)),
-            state = BannerState.Warning
-        )
-    )*/
 
     /**
      * Lista de calles inundadas simuladas para testing y desarrollo.

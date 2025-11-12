@@ -25,6 +25,7 @@ import com.example.practicadesign.ui.auth.AuthViewModel
 import com.example.practicadesign.ui.login.LoginScreen
 import com.example.practicadesign.ui.mapa.MapScreen
 import com.example.practicadesign.ui.mapa.componentes.BottomNav
+import com.example.practicadesign.ui.profile.ProfileScreen
 import com.example.practicadesign.ui.refugios.SheltersScreen
 import com.example.practicadesign.ui.reportes.ReportScreen
 
@@ -46,16 +47,17 @@ fun AppNavigation() {
     val authViewModel: AuthViewModel = viewModel()
 
     // Observa el rol del usuario desde el ViewModel.
-    // Durante el desarrollo, puedes cambiarlo por un valor fijo como: `val userRole: String? = "admin"`
-    // val userRole by authViewModel.userRole.collectAsState()
-
-    // MODO DE DESARROLLO (manual): Descomenta la siguiente línea para forzar un rol.
-    val userRole: String? = "admin" // Puedes cambiar "admin" por "user" o null para probar.
+    // Esto permite que la navegación reaccione automáticamente a cambios en el estado de autenticación.
+   // val userRole by authViewModel.userRole.collectAsState()
+    
+    // MODO DE DESARROLLO (manual): Si necesitas forzar un rol para testing, descomenta la siguiente línea:
+     val userRole: String? = "admin" // Puedes cambiar "admin" por "user" o null para probar.
 
     // --- LÓGICA DE UI ---
     // Obtiene la ruta actual para decidir si mostrar o no la barra de navegación.
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    // Oculta la BottomNav cuando estamos en Login
     val isBottomBarVisible = currentRoute != Screen.Login.route
 
     // --- ESTRUCTURA DE LA PANTALLA ---
@@ -132,6 +134,25 @@ private fun AppNavHost(
             ReportScreen(onClose = { navController.popBackStack() })
         }
 
+        composable(
+            route = Screen.Profile.route,
+            enterTransition = { fadeIn(animationSpec = defaultFadeSpec) },
+            exitTransition = { fadeOut(animationSpec = defaultFadeSpec) }
+        ) {
+            ProfileScreen(
+                onBack = { navController.popBackStack() },
+                onLogout = {
+                    // Cierra sesión en el AuthViewModel
+                    authViewModel.onLogout()
+                    // Navega de vuelta al mapa después de cerrar sesión
+                    navController.navigate(Screen.Mapa.route) {
+                        popUpTo(Screen.Mapa.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
         // --- PANTALLAS SECUNDARIAS (Transición Slide) ---
         composable(
             route = Screen.Login.route,
@@ -141,8 +162,16 @@ private fun AppNavHost(
             LoginScreen(
                 onLoginSuccess = { newRole ->
                     authViewModel.onLoginSuccess(newRole)
-                    // Vuelve a la pantalla anterior (Mapa) después de un login exitoso.
-                    navController.popBackStack()
+                    // Después de un login exitoso, navega al perfil si es admin/user
+                    // o vuelve a la pantalla anterior si estaba navegando
+                    if (newRole == "admin" || newRole == "user") {
+                        navController.navigate(Screen.Profile.route) {
+                            popUpTo(Screen.Mapa.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    } else {
+                        navController.popBackStack()
+                    }
                 }
             )
         }

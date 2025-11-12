@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.practicadesign.ui.refugios.componentes.ErrorStateComponent
@@ -39,6 +40,14 @@ import com.example.practicadesign.ui.refugios.componentes.ShelterItemSkeleton
  *
  * @param sheltersViewModel El ViewModel que proporciona el estado y maneja la lógica.
  */
+
+@Preview(showBackground = true, name = "Filtros (Disponibles seleccionados)")
+@Composable
+private fun SheltersScreenPreview() {
+    SheltersScreen(
+    )
+}
+
 @Composable
 fun SheltersScreen(
     sheltersViewModel: SheltersViewModel = viewModel()
@@ -71,31 +80,34 @@ fun SheltersScreen(
 
         // --- Contenido Principal (Carga o Lista) ---
         Box(modifier = Modifier.fillMaxSize()) {
-            if (uiState.isLoading) {
-                // Muestra un indicador de carga centrado si los datos se están obteniendo.
-                //CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    userScrollEnabled = false // El usuario no debería poder hacer scroll en el esqueleto
-                ) {
-                    items(10) { // Muestra 10 items fantasma
-                        ShelterItemSkeleton()
+            when {
+                uiState.isLoading -> {
+                    // Muestra un esqueleto de carga mientras se obtienen los datos.
+                    // Esto mejora la UX al mostrar un placeholder en lugar de una pantalla vacía.
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        userScrollEnabled = false // El usuario no debería poder hacer scroll en el esqueleto
+                    ) {
+                        items(10) { // Muestra 10 items fantasma
+                            ShelterItemSkeleton()
+                        }
                     }
                 }
-            } else if (uiState.errorMessage != null) { // <-- NUEVA CONDICIÓN
-                // Muestra un componente de error
-                val errorMessage = uiState.errorMessage
-                ErrorStateComponent(
-                    message = errorMessage,
-                    onRetry = { sheltersViewModel.retryLoadShelters() } // <-- ¡Avanzado pero ideal!
-                )
-            } else {
-                // Muestra la lista de refugios una vez que los datos están listos.
-                SheltersList(
-                    uiState = uiState,
-                    onShelterClick = { shelterId -> sheltersViewModel.onShelterToggled(shelterId) }
-                )
+                uiState.errorMessage != null -> {
+                    // Muestra un componente de error con opción de reintentar.
+                    ErrorStateComponent(
+                        message = uiState.errorMessage,
+                        onRetry = { sheltersViewModel.retryLoadShelters() }
+                    )
+                }
+                else -> {
+                    // Muestra la lista de refugios una vez que los datos están listos.
+                    SheltersList(
+                        uiState = uiState,
+                        onShelterClick = { shelterId -> sheltersViewModel.onShelterToggled(shelterId) }
+                    )
+                }
             }
         }
     }

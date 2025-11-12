@@ -206,40 +206,63 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
      * 
      * Carga en paralelo:
      * - Refugios desde el backend (conectado)
-     * - Zonas de riesgo (simuladas)
+     * - Zonas de riesgo desde el backend (conectado)
      * - Calles inundadas (simuladas)
      * 
-     * Maneja errores de red y muestra mensajes apropiados al usuario.
+     * Maneja errores de red de forma robusta para evitar crashes.
+     * Si alguna llamada falla, se usa una lista vacía como fallback.
      */
     private fun fetchInitialMapData() {
         _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
             try {
-                // Ejecuta todas las operaciones en paralelo
-/*                val sheltersDeferred = async {
-                    mapRepository.getShelters().catch { emit(emptyList()) }.first()
-                }*/
+                // Ejecuta todas las operaciones en paralelo con manejo individual de errores
+                val sheltersDeferred = async {
+                    try {
+                        mapRepository.getShelters().catch { 
+                            Log.e("MapViewModel", "Error al cargar refugios", it)
+                            emit(emptyList()) 
+                        }.first()
+                    } catch (e: Exception) {
+                        Log.e("MapViewModel", "Excepción al cargar refugios", e)
+                        emptyList<Shelter>()
+                    }
+                }
                 
                 val zonesDeferred = async {
-                    mapRepository.getRiskZones().first()
+                    try {
+                        mapRepository.getRiskZones().catch { 
+                            Log.e("MapViewModel", "Error al cargar zonas de riesgo", it)
+                            emit(emptyList()) 
+                        }.first()
+                    } catch (e: Exception) {
+                        Log.e("MapViewModel", "Excepción al cargar zonas de riesgo", e)
+                        emptyList<RiskZone>()
+                    }
                 }
-/*                val zonesDeferred = async {
-                    mapRepository.getMockRiskZones().catch { emit(emptyList()) }.first()
-                }*/
+                
                 val streetsDeferred = async {
-                    mapRepository.getMockFloodedStreets().catch { emit(emptyList()) }.first()
+                    try {
+                        mapRepository.getMockFloodedStreets().catch { 
+                            Log.e("MapViewModel", "Error al cargar calles inundadas", it)
+                            emit(emptyList()) 
+                        }.first()
+                    } catch (e: Exception) {
+                        Log.e("MapViewModel", "Excepción al cargar calles inundadas", e)
+                        emptyList<FloodedStreet>()
+                    }
                 }
 
-                // Espera a que todas terminen
-             //   val shelters = sheltersDeferred.await()
+                // Espera a que todas terminen (cada una ya maneja sus errores internamente)
+                val shelters = sheltersDeferred.await()
                 val zones = zonesDeferred.await()
                 val streets = streetsDeferred.await()
 
                 // Actualiza todo de una vez
                 _uiState.update {
                     it.copy(
-                 //       shelters = shelters,
+                        shelters = shelters,
                         riskZones = zones,
                         floodedStreets = streets,
                         isLoading = false,
@@ -248,12 +271,13 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 // Manejo de errores general: actualiza el estado con un mensaje de error
-                Log.e("MapViewModel_ERROR", "Fallo al cargar datos del mapa", e)
+                // Este catch es una red de seguridad adicional por si algo inesperado ocurre
+                Log.e("MapViewModel", "Error inesperado al cargar datos del mapa", e)
 
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        networkError = "Error al cargar los datos del mapa: ${e.message}"
+                        networkError = "Error al cargar los datos del mapa. Verifique su conexión."
                     )
                 }
             }
@@ -304,27 +328,46 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
      * Verifica si la ubicación del usuario está dentro de alguna zona de riesgo.
      * Actualiza el banner de estado según la zona de mayor riesgo encontrada.
      * 
+     * Maneja errores de forma robusta para evitar crashes si hay problemas
+     * con las coordenadas o las zonas de riesgo.
+     * 
      * @param userLocation La ubicación actual del usuario
      */
     fun checkUserLocationAgainstZones(userLocation: LatLng) {
         viewModelScope.launch {
-            val currentZones = uiState.value.riskZones
-            if (currentZones.isEmpty()) return@launch // No hacer nada si las zonas no han cargado
+            try {
+                val currentZones = uiState.value.riskZones
+                if (currentZones.isEmpty()) return@launch // No hacer nada si las zonas no han cargado
 
-            // Busca la zona de mayor riesgo que contenga la ubicación del usuario
-            val highestRiskZone = currentZones
-                .filter { zone -> containsLocation(userLocation, zone.area.map { it.toGoogleLatLng() }, false) }
-                // Ahora comparamos usando la función de conversión a BannerState
-                .maxByOrNull { riskLevelToBannerState(it.riskLevel).ordinal }
+                // Busca la zona de mayor riesgo que contenga la ubicación del usuario
+                val highestRiskZone = currentZones
+                    .filter { zone -> 
+                        try {
+                            // Verifica que la zona tenga al menos 3 puntos para formar un polígono válido
+                            zone.area.size >= 3 && 
+                            containsLocation(userLocation, zone.area.map { it.toGoogleLatLng() }, false)
+                        } catch (e: Exception) {
+                            // Si hay un error al verificar la ubicación (coordenadas inválidas, etc.), ignoramos esta zona
+                            Log.w("MapViewModel", "Error al verificar ubicación en zona ${zone.id}", e)
+                            false
+                        }
+                    }
+                    // Compara usando la función de conversión a BannerState
+                    .maxByOrNull { riskLevelToBannerState(it.riskLevel).ordinal }
 
-            // Determina el nuevo estado. Si no se encontró ninguna zona, es 'Safe'
-            val newBannerState = highestRiskZone?.let {
-                riskLevelToBannerState(it.riskLevel)
-            } ?: BannerState.Safe
+                // Determina el nuevo estado. Si no se encontró ninguna zona, es 'Safe'
+                val newBannerState = highestRiskZone?.let {
+                    riskLevelToBannerState(it.riskLevel)
+                } ?: BannerState.Safe
 
-            // Actualiza el UiState solo si el estado ha cambiado, para evitar redibujos innecesarios
-            if (newBannerState != uiState.value.bannerState) {
-                _uiState.update { it.copy(bannerState = newBannerState) }
+                // Actualiza el UiState solo si el estado ha cambiado, para evitar redibujos innecesarios
+                if (newBannerState != uiState.value.bannerState) {
+                    _uiState.update { it.copy(bannerState = newBannerState) }
+                }
+            } catch (e: Exception) {
+                // Si hay un error inesperado, simplemente lo registramos y no actualizamos el estado
+                // Esto evita crashes y permite que la app continúe funcionando
+                Log.e("MapViewModel", "Error al verificar ubicación contra zonas de riesgo", e)
             }
         }
     }

@@ -137,22 +137,12 @@ fun MapScreen(
     LaunchedEffect(uiState.userLocation) {
         val location = uiState.userLocation
         if (location != null && !hasAnimatedToUserLocation) {
-/*            cameraPositionState.animate(
-                update = CameraUpdateFactory.newLatLngZoom(location, 16f),
-                durationMs = 1500
-            )
-            hasAnimatedToUserLocation = true*/
-            // --- INICIO DE LA LÓGICA DE CENTRADO CON DESPLAZAMIENTO ---
-
             // 1. Definimos el desplazamiento vertical que queremos en dp.
             // Un valor negativo mueve la cámara HACIA ABAJO (desplazando el marcador).
             // Ajusta este valor para que coincida con el que usas en el botón de centrar.
             val yOffsetDp = -125.dp
 
             // 2. Convertimos los dp a píxeles (px).
-        //    val density = LocalDensity.current.density
-        //    val yOffsetPx = yOffsetDp.value * density
-
             val density = context.resources.displayMetrics.density
             val yOffsetPx = yOffsetDp.value * density
 
@@ -171,8 +161,6 @@ fun MapScreen(
 
             // 5. Marcamos que la animación inicial ya se ha completado.
             hasAnimatedToUserLocation = true
-
-            // --- FIN DE LA LÓGICA ---
         }
     }
 
@@ -246,21 +234,10 @@ fun MapScreen(
                         else -> Color.Gray.copy(alpha = 0.5f)
                     }
                     Polygon(
-                        //points = zone.area.map { it.toGoogleLatLng() },
                         points = riskZone.area.map { LatLng(it.latitude, it.longitude) },
                         fillColor = color,
                         strokeWidth = 3f,
                         strokeColor = color.copy(alpha = 1f),
-                        /*strokeColor = when (riskZone.state) {
-                            BannerState.Warning -> Color(0x80_FBBF24)
-                            BannerState.Danger -> Color(0x80_F87171)
-                            else -> Color.Transparent
-                        }*/
-                       /* fillColor = when (riskZone.state) {
-                            BannerState.Warning -> Color(0x55_FBBF24)
-                            BannerState.Danger -> Color(0x55_F87171)
-                            else -> Color.Transparent
-                        }*/
                         clickable = true,
                         onClick = {
                             mapViewModel.onZoneRiskSelected(riskZone)

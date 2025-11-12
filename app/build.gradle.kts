@@ -82,15 +82,33 @@ dependencies {
     implementation("io.ktor:ktor-client-logging:2.3.11")
     // Serialización de Kotlin
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+
+    implementation("androidx.activity:activity-compose:1.11.0")
+// o la última versión
+    implementation("androidx.compose.ui:ui:1.9.4")
+// o la última versión
+    implementation("androidx.compose.ui:ui-tooling-preview:1.9.4")
+// o la última versión
+    implementation("androidx.compose.material3:material3:1.4.0")
+    implementation(libs.androidx.appcompat)
+// o la última versión
+// Para cargar imágenes de URL
 
 
 
+    testImplementation("junit:junit:4.13.2")
 
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
+    // ✅ --- CAMBIOS AQUÍ ---
+    // Confía en el BOM para las versiones de testing de Compose
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4") // <-- Sin versión
+
+    // Comenta o elimina estas líneas que especifican versiones conflictivas
+    // androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    // androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
+
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

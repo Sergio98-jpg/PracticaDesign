@@ -36,10 +36,13 @@ data class SheltersUiState(
 
 /**
  * Define los tipos de filtros rápidos disponibles en la pantalla de refugios.
+ * 
+ * @property ALL Muestra todos los refugios sin filtrar
+ * @property OPEN Muestra solo los refugios que están abiertos
+ * @property WITH_AVAILABILITY Muestra solo los refugios con disponibilidad (espacios disponibles > 0)
  */
 enum class ShelterFilter {
     ALL,
     OPEN,
- //   NEAREST,
     WITH_AVAILABILITY
 }

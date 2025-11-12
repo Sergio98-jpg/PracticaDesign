@@ -1,26 +1,19 @@
 package com.example.practicadesign.data
 
-import com.example.practicadesign.ui.mapa.componentes.BannerState
 import kotlinx.serialization.Serializable
 
 /**
  * Representa una zona de riesgo de inundación en el mapa.
  * 
- * Una zona de riesgo está definida por un polígono (lista de coordenadas)
- * y un nivel de riesgo (Warning, Danger, Safe).
+ * Una zona de riesgo está definida por un polígono (lista de coordenadas),
+ * un nombre identificador y un nivel de riesgo (ALTO, MEDIO, BAJO).
  * 
  * @property id Identificador único de la zona de riesgo
+ * @property name Nombre identificador de la zona de riesgo
+ * @property riskLevel Nivel de riesgo de la zona (ALTO, MEDIO, BAJO)
  * @property area Lista de coordenadas que forman el polígono de la zona
- * @property state Nivel de riesgo de la zona (Warning, Danger, Safe)
  */
 @Serializable
-/*
-data class RiskZone(
-    val id: String,
-    val area: List<SerializableLatLng>,
-    val state: BannerState
-)*/
-
 data class RiskZone(
     val id: String,
     val name: String,

@@ -39,40 +39,66 @@ open class SheltersViewModel : ViewModel() {
 
     /**
      * Obtiene la lista de refugios del repositorio y actualiza el UiState.
+     * 
+     * Maneja errores de forma robusta para evitar crashes si falla la conexión al backend.
+     * Si la carga falla, se actualiza el estado con un mensaje de error.
      */
     private fun loadShelters() {
         Log.d("SheltersViewModel", "Iniciando la carga de refugios...")
         viewModelScope.launch {
-            val startTime = System.currentTimeMillis()
-            repository.getShelters()
-                .catch { exception ->
-                    // Cuando el Flow lanza una excepción, este bloque se activa.
-                    System.out.println("ViewModel atrapó un error: ${exception.message}")
-
-                    val elapsedTime = System.currentTimeMillis() - startTime
-                    val remainingTime = 500L - elapsedTime // 500ms como tiempo mínimo
-                    if (remainingTime > 0) {
-                        delay(remainingTime)
+            try {
+                // Tiempo mínimo de carga para evitar parpadeos en la UI (mejora UX)
+                val startTime = System.currentTimeMillis()
+                val MIN_LOADING_TIME_MS = 500L
+                
+                repository.getShelters()
+                    .catch { exception ->
+                        // Cuando el Flow lanza una excepción, este bloque se activa.
+                        Log.e("SheltersViewModel", "Error al cargar refugios", exception)
+                        
+                        // Asegura un tiempo mínimo de carga para mejorar la experiencia de usuario
+                        val elapsedTime = System.currentTimeMillis() - startTime
+                        val remainingTime = MIN_LOADING_TIME_MS - elapsedTime
+                        if (remainingTime > 0) {
+                            delay(remainingTime)
+                        }
+                        
+                        // Actualizamos el estado para indicar que la carga falló,
+                        // pero la app no crashea.
+                        _uiState.update { 
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = "No se pudieron cargar los refugios. Verifique su conexión."
+                            ) 
+                        }
                     }
-                    // Actualizamos el estado para indicar que la carga falló,
-                    // pero la app no crashea. Podríamos añadir un mensaje de error.
-                    _uiState.update { it.copy(isLoading = false , errorMessage = "No se pudieron cargar los datos") }
+                    .collect { shelters ->
+                        // Asegura un tiempo mínimo de carga para mejorar la experiencia de usuario
+                        val elapsedTime = System.currentTimeMillis() - startTime
+                        val remainingTime = MIN_LOADING_TIME_MS - elapsedTime
+                        if (remainingTime > 0) {
+                            delay(remainingTime)
+                        }
+                        
+                        // Cuando se reciben los datos, se actualiza el estado.
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                isLoading = false,
+                                shelters = shelters,
+                                errorMessage = null // Limpia cualquier error anterior
+                            )
+                        }
+                    }
+            } catch (e: Exception) {
+                // Manejo de errores adicional por si algo inesperado ocurre
+                Log.e("SheltersViewModel", "Error inesperado al cargar refugios", e)
+                _uiState.update { 
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Error al cargar los refugios. Intente más tarde."
+                    ) 
                 }
-                .collect { shelters ->
-
-                    val elapsedTime = System.currentTimeMillis() - startTime
-                    val remainingTime = 500L - elapsedTime // 500ms como tiempo mínimo
-                    if (remainingTime > 0) {
-                        delay(remainingTime)
-                    }
-                    // Cuando se reciben los datos, se actualiza el estado.
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            isLoading = false,
-                            shelters = shelters
-                        )
-                    }
-                }
+            }
         }
     }
 

@@ -1,6 +1,5 @@
 package com.example.practicadesign.data
 
-import com.example.practicadesign.ui.mapa.componentes.BannerState
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.ServerResponseException
@@ -43,6 +42,7 @@ class MapRepository() {
      */
     companion object {
         private const val BASE_URL = "http://192.168.0.19:8080/api"
+      //  private const val BASE_URL = "http://10.154.219.198:8080/api"
     }
 
     /**
@@ -61,24 +61,20 @@ class MapRepository() {
      */
     fun getShelters(): Flow<List<Shelter>> = flow {
         try {
-           // System.out.println("Entre al try")
             // 1. Obtener la respuesta completa del backend
             val response = client.get("$BASE_URL/refugios").body<SheltersApiResponse>()
-            System.out.println("Response:" + response)
+            
             // 2. Verificar que la respuesta sea exitosa
             if (!response.success) {
-                System.out.println("Entre al if del try")
                 throw IOException("Error de API: ${response.message}")
             }
 
             // 3. Mapear los DTOs a objetos de dominio
             val shelters = response.data.map { it.toDomain() }
-            System.out.println("Shelter:" + shelters)
+            
             // 4. Emitir la lista mapeada
             emit(shelters)
-            System.out.println("Acabo el try")
         } catch (e: ClientRequestException) {
-            println("Entre al catch")
             // Error 4xx: La petición es incorrecta (ej: URL mal formada, endpoint no encontrado)
             throw IOException(
                 "No se pudo encontrar el recurso solicitado. Verifique la URL.",
@@ -106,26 +102,36 @@ class MapRepository() {
         }
     }
 
+    /**
+     * Obtiene la lista de zonas de riesgo desde el backend.
+     * 
+     * Esta función realiza una petición HTTP GET al endpoint `/zonas-riesgo` del backend,
+     * mapea los DTOs a objetos de dominio y los emite como un Flow.
+     * 
+     * Maneja diferentes tipos de errores:
+     * - Errores 4xx (petición incorrecta)
+     * - Errores 5xx (error del servidor)
+     * - Errores de red (conexión, timeout, etc.)
+     * - Errores de deserialización
+     * 
+     * @return Flow que emite la lista de zonas de riesgo o lanza una excepción en caso de error
+     */
     fun getRiskZones(): Flow<List<RiskZone>> = flow {
         try {
-            println("Entre al try RiskZone")
             // 1. Obtener la respuesta completa del backend
             val response = client.get("$BASE_URL/zonas-riesgo").body<RiskZoneApiResponse>()
-            System.out.println("Response RiskZone: " + response)
+            
             // 2. Verificar que la respuesta sea exitosa
             if (!response.success) {
-                System.out.println("Entre al if del try de RiskZone")
                 throw IOException("Error de API: ${response.message}")
             }
 
             // 3. Mapear los DTOs a objetos de dominio
-            val riskZone = response.data.map { it.toDomain() }
-            System.out.println("RiskZone:" + riskZone)
+            val riskZones = response.data.map { it.toDomain() }
+            
             // 4. Emitir la lista mapeada
-            emit(riskZone)
-            System.out.println("Acabo el try de RiskZone")
+            emit(riskZones)
         } catch (e: ClientRequestException) {
-            println("Entre al catch")
             // Error 4xx: La petición es incorrecta (ej: URL mal formada, endpoint no encontrado)
             throw IOException(
                 "No se pudo encontrar el recurso solicitado. Verifique la URL.",
@@ -155,20 +161,6 @@ class MapRepository() {
     // ==================== DATOS SIMULADOS (MOCK) ====================
     // Estos métodos devuelven datos simulados. En una implementación futura,
     // serían reemplazados por llamadas reales a un servicio de API.
-
-    /**
-     * Obtiene las zonas de riesgo simuladas.
-     *
-     * Nota: Este método devuelve datos simulados. En una implementación futura,
-     * se reemplazaría por una llamada real al endpoint `/risk-zones` del backend.
-     *
-     * @return Flow que emite la lista de zonas de riesgo simuladas
-     */
-
-/*    fun getMockRiskZones(): Flow<List<RiskZone>> = flow {
-        delay(500) // Simula una pequeña demora de red
-        emit(MockData.riskZones)
-    }*/
 
     /**
      * Obtiene las calles inundadas simuladas.

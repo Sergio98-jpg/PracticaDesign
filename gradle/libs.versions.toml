@@ -16,6 +16,7 @@ uiGraphics = "1.9.4"
 animationVersion = "1.9.4"
 ui = "1.9.4"
 uiText = "1.9.4"
+appcompat = "1.7.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -40,6 +41,7 @@ ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref
 animation = { group = "androidx.compose.animation", name = "animation", version.ref = "animationVersion" }
 ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 androidx-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
