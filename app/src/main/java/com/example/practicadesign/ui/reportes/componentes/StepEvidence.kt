@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,38 +28,34 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.practicadesign.utils.ImageCompressor
+import kotlinx.coroutines.launch
 
 /**
  * Paso 4: Evidencia fotográfica del reporte.
  * 
  * Permite al usuario agregar hasta 3 fotos del incidente desde la galería o la cámara.
+ * Las imágenes se comprimen automáticamente antes de guardarse.
  * 
  * @param photos Lista de URIs de las fotos adjuntas (máximo 3)
- * @param onPhotoAdded Callback cuando se agrega una foto (recibe el índice y la URI)
+ * @param onPhotoAdded Callback cuando se agrega una foto (recibe el índice y la URI comprimida)
  */
 @Composable
 fun StepEvidence(
@@ -64,15 +63,42 @@ fun StepEvidence(
     onPhotoAdded: (Int, Uri?) -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var showDialog by remember { mutableStateOf(false) }
     var selectedPhotoIndex by remember { mutableStateOf(0) }
+    var isCompressing by remember { mutableStateOf(false) }
 
     // Lanzador para seleccionar imagen de la galería
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri: Uri? ->
-            uri?.let {
-                onPhotoAdded(selectedPhotoIndex, it)
+            uri?.let { originalUri ->
+                // Comprimir la imagen antes de agregarla
+                isCompressing = true
+                coroutineScope.launch {
+                    try {
+                        val compressedUri = ImageCompressor.compressImage(context, originalUri)
+                        isCompressing = false
+                        
+                        if (compressedUri != null) {
+                            onPhotoAdded(selectedPhotoIndex, compressedUri)
+                        } else {
+                            // Si la compresión falla, mostrar un mensaje de error
+                            android.widget.Toast.makeText(
+                                context,
+                                "Error al procesar la imagen. Intenta con otra imagen.",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } catch (e: Exception) {
+                        isCompressing = false
+                        android.widget.Toast.makeText(
+                            context,
+                            "Error al cargar la imagen: ${e.message}",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             }
         }
     )
@@ -113,6 +139,28 @@ fun StepEvidence(
             text = "Añade fotos del incidente (opcional)",
             color = Color(0xFF64748B)
         )
+        
+        // Indicador de compresión
+        if (isCompressing) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = Color(0xFF0891B2)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Comprimiendo imagen...",
+                    color = Color(0xFF64748B),
+                    fontSize = 14.sp
+                )
+            }
+        }
+        
         Spacer(modifier = Modifier.height(16.dp))
 
         // Cuadrícula de fotos (máximo 3)

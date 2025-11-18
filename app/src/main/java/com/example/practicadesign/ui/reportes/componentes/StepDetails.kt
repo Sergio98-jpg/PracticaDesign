@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.sp
  * @param descCount Contador de caracteres de la descripción
  * @param urgency Nivel de urgencia seleccionado (high, medium, low)
  * @param onUrgencyChange Callback cuando cambia el nivel de urgencia
+ * @param titleError Mensaje de error para el campo título (null si no hay error)
+ * @param descriptionError Mensaje de error para el campo descripción (null si no hay error)
  */
 @Preview(showBackground = true)
 @Composable
@@ -53,7 +55,9 @@ fun StepDetailsScreenPreview() {
         titleCount = 0,
         descCount = 0,
         urgency = "medium",
-        onUrgencyChange = {}
+        onUrgencyChange = {},
+        titleError = null,
+        descriptionError = null
     )
 }
 
@@ -66,7 +70,9 @@ fun StepDetails(
     titleCount: Int,
     descCount: Int,
     urgency: String,
-    onUrgencyChange: (String) -> Unit
+    onUrgencyChange: (String) -> Unit,
+    titleError: String? = null,
+    descriptionError: String? = null
 ) {
     Column(modifier = Modifier
         .fillMaxSize()
@@ -78,7 +84,11 @@ fun StepDetails(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Title
-        Text("Título del reporte *", fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = Color(0xFF334155))
+        Text(
+            text = "Título del reporte *",
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            color = Color(0xFF334155)
+        )
         Spacer(modifier = Modifier.height(6.dp))
         OutlinedTextField(
             value = title,
@@ -86,29 +96,51 @@ fun StepDetails(
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("Ej: Inundación en Av. Principal") },
             singleLine = true,
+            isError = titleError != null,
+            supportingText = titleError?.let { error ->
+                {
+                    Text(
+                        text = error,
+                        color = Color(0xFFEF4444),
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White,
-                focusedBorderColor = Color(0xFF0891B2),
-                unfocusedBorderColor = Color(0xFFE2E8F0),
+                focusedBorderColor = if (titleError != null) Color(0xFFEF4444) else Color(0xFF0891B2),
+                unfocusedBorderColor = if (titleError != null) Color(0xFFEF4444) else Color(0xFFE2E8F0),
+                errorBorderColor = Color(0xFFEF4444),
                 focusedTextColor = Color(0xFF0F172A),
                 cursorColor = Color(0xFF0891B2)
             ),
             shape = RoundedCornerShape(12.dp)
         )
-        Text(
-            text = "$titleCount/60",
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp),
-            color = Color(0xFF94A3B8),
-            textAlign = TextAlign.Right
-        )
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            if (titleError == null) {
+                Spacer(modifier = Modifier)
+            }
+            Text(
+                text = "$titleCount/60",
+                color = Color(0xFF94A3B8),
+                textAlign = TextAlign.Right
+            )
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         // Description
-        Text("Descripción *", fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = Color(0xFF334155))
+        Text(
+            text = "Descripción *",
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            color = Color(0xFF334155)
+        )
         Spacer(modifier = Modifier.height(6.dp))
         OutlinedTextField(
             value = description,
@@ -117,24 +149,42 @@ fun StepDetails(
                 .fillMaxWidth()
                 .heightIn(min = 120.dp),
             placeholder = { Text("Describe lo que está ocurriendo...") },
+            isError = descriptionError != null,
+            supportingText = descriptionError?.let { error ->
+                {
+                    Text(
+                        text = error,
+                        color = Color(0xFFEF4444),
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White,
-                focusedBorderColor = Color(0xFF0891B2),
-                unfocusedBorderColor = Color(0xFFE2E8F0),
+                focusedBorderColor = if (descriptionError != null) Color(0xFFEF4444) else Color(0xFF0891B2),
+                unfocusedBorderColor = if (descriptionError != null) Color(0xFFEF4444) else Color(0xFFE2E8F0),
+                errorBorderColor = Color(0xFFEF4444),
                 focusedTextColor = Color(0xFF0F172A),
                 cursorColor = Color(0xFF0891B2)
             ),
             shape = RoundedCornerShape(12.dp)
         )
-        Text(
-            text = "$descCount/500",
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp),
-            color = Color(0xFF94A3B8),
-            textAlign = TextAlign.Right
-        )
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            if (descriptionError == null) {
+                Spacer(modifier = Modifier)
+            }
+            Text(
+                text = "$descCount/500",
+                color = Color(0xFF94A3B8),
+                textAlign = TextAlign.Right
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 

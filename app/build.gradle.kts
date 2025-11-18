@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("com.google.devtools.ksp") version "2.0.21-1.0.28"
 }
 
 android {
@@ -84,6 +85,14 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
 
+    // Room Database para persistencia local
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
+
+    // DataStore para preferencias
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 
     implementation("androidx.activity:activity-compose:1.11.0")
 // o la última versión

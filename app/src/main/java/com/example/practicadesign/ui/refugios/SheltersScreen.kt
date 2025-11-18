@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.practicadesign.ui.refugios.componentes.ErrorStateComponent
 import com.example.practicadesign.ui.refugios.componentes.QuickFiltersRow
@@ -50,7 +51,10 @@ private fun SheltersScreenPreview() {
 
 @Composable
 fun SheltersScreen(
-    sheltersViewModel: SheltersViewModel = viewModel()
+    sheltersViewModel: SheltersViewModel = viewModel(
+        factory = androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
+            .getInstance(LocalContext.current.applicationContext as android.app.Application)
+    )
 ) {
     // --- ESTADO ---
     // Observa el UiState del ViewModel. Cualquier cambio aquí causará una recomposición.

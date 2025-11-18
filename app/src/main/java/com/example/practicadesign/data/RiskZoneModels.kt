@@ -25,18 +25,20 @@ data class RiskZoneDto(
     @SerialName("id_zona") val idZona: Int,
     @SerialName("identificador") val identificador: String,
     @SerialName("id_nivel") val idNivel: Int,
-    @SerialName("poligono") val poligono: PoligonoDto,
+    @SerialName("poligono") val poligono: GeoJsonPolygonDto,  // ← El backend envía un objeto GeoJSON
     @SerialName("nivel") val nivel: NivelDto,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )
 
 /**
- * DTO para el objeto anidado "poligono".
+ * DTO para el objeto GeoJSON Polygon que envía el backend.
+ * Formato: { "type": "Polygon", "coordinates": [[...]] }
  */
 @Serializable
-data class PoligonoDto(
-    @SerialName("area") val area: List<CoordenadaDto>
+data class GeoJsonPolygonDto(
+    @SerialName("type") val type: String,
+    @SerialName("coordinates") val coordinates: List<List<List<Double>>>  // GeoJSON usa array anidado: [[[lng, lat], [lng, lat], ...]]
 )
 
 /**
@@ -46,17 +48,9 @@ data class PoligonoDto(
 data class NivelDto(
     @SerialName("id_nivel") val idNivel: Int,
     @SerialName("codigo") val codigo: String,
-    @SerialName("descripcion") val descripcion: String? // Es nulable, como en el JSON
-)
-
-/**
- * DTO para una coordenada geográfica.
- * El JSON usa "lat" y "lng", así que lo mapeamos.
- */
-@Serializable
-data class CoordenadaDto(
-    @SerialName("lat") val latitud: Double,
-    @SerialName("lng") val longitud: Double
+    @SerialName("descripcion") val descripcion: String? = null, // Es nulable, como en el JSON
+    @SerialName("created_at") val createdAt: String? = null,    // Puede ser null
+    @SerialName("updated_at") val updatedAt: String? = null     // Puede ser null
 )
 
 
@@ -70,15 +64,32 @@ data class CoordenadaDto(
  * de la aplicación permanece intacto.
  */
 fun RiskZoneDto.toDomain(): RiskZone {
+    // El backend envía el polígono en formato GeoJSON: { "type": "Polygon", "coordinates": [[[lat, lng], ...]] }
+    // Nota: El backend NO sigue el estándar GeoJSON que usa [lng, lat], sino que envía [lat, lng]
+    // El primer nivel es el array de anillos (rings), el segundo es el array de coordenadas
+    // Tomamos el primer anillo (exterior) y convertimos las coordenadas
+    val coordinates = this.poligono.coordinates.firstOrNull() ?: emptyList()
+    
+    val mappedArea = coordinates.map { coord ->
+        // El backend envía [latitude, longitude] (no el estándar GeoJSON [longitude, latitude])
+        // coord[0] = latitude, coord[1] = longitude
+        val lat = coord.getOrNull(0) ?: 0.0
+        val lng = coord.getOrNull(1) ?: 0.0
+        SerializableLatLng(latitude = lat, longitude = lng)
+    }
+    
     return RiskZone(
         id = this.idZona.toString(),
         name = this.identificador, // Usamos 'identificador' como el nombre
-        riskLevel = when(this.nivel.codigo) { // Traducimos el código a nuestros valores ("ALTO", "MEDIO", etc.)
-            "Peligro" -> "ALTO"
-            "Precaución" -> "MEDIO"
-            "Área Segura" -> "BAJO"
-            else -> "DESCONOCIDO" // Un valor por defecto por si llega algo inesperado
+        riskLevel = when(this.nivel.codigo.uppercase()) { // Normalizamos a mayúsculas para comparación
+            "ALTO" -> "ALTO"
+            "MODERADO" -> "MEDIO"  // El backend usa "MODERADO", nosotros usamos "MEDIO"
+            "BAJO" -> "BAJO"
+            else -> {
+                android.util.Log.w("RiskZoneDto", "Código de nivel desconocido: '${this.nivel.codigo}'. Usando 'ALTO' por defecto.")
+                "ALTO"  // Por defecto, asumimos alto riesgo si no reconocemos el código
+            }
         },
-        area = this.poligono.area.map { SerializableLatLng(it.latitud, it.longitud) }
+        area = mappedArea
     )
 }

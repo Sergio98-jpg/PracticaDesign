@@ -1,5 +1,10 @@
 package com.example.practicadesign.data
 
+import android.content.Context
+import android.util.Log
+import com.example.practicadesign.data.local.AppDatabase
+import com.example.practicadesign.data.local.CacheMappers.toDomain
+import com.example.practicadesign.data.local.CacheMappers.toEntity
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.ServerResponseException
@@ -8,48 +13,71 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import java.io.IOException
 
 /**
  * Repositorio encargado de gestionar los datos relacionados con el mapa.
  *
  * Esta clase actúa como una única fuente de verdad (Single Source of Truth) para los datos del mapa,
- * abstrayendo los orígenes de datos (API REST, WebSockets, datos simulados) del ViewModel.
+ * abstrayendo los orígenes de datos (API REST, WebSockets, cache local, datos simulados) del ViewModel.
+ *
+ * Implementa una estrategia cache-first:
+ * 1. Primero muestra datos del cache local (si existen)
+ * 2. Luego intenta actualizar desde el backend
+ * 3. Si el backend falla, mantiene los datos del cache
  *
  * Proporciona métodos para obtener:
- * - Refugios (`getShelters`) a través de una llamada a una API REST con Ktor.
- * - Zonas de riesgo y calles inundadas (`getMockRiskZones`, `getMockFloodedStreets`) a partir de datos simulados.
- * - Actualizaciones en tiempo real de las zonas de riesgo (`getRiskZoneUpdates`) a través de un WebSocket.
+ * - Refugios (`getShelters`) con cache-first strategy
+ * - Zonas de riesgo (`getRiskZones`) con cache-first strategy
+ * - Calles inundadas (`getMockFloodedStreets`) a partir de datos simulados
+ * - Actualizaciones en tiempo real de las zonas de riesgo (`getRiskZoneUpdates`) a través de un WebSocket
  *
- * En una implementación futura, los métodos de datos simulados (`getMock...`) serían reemplazados por
- * llamadas reales a un servicio de API.
- *
+ * @property context Contexto de la aplicación para acceder a la base de datos
  * @property webSocketListener Listener para actualizaciones en tiempo real vía WebSocket
  * @property client Cliente HTTP de Ktor para realizar peticiones REST
+ * @property database Instancia de la base de datos Room para cache local
  */
-class MapRepository() {
+class MapRepository(private val context: Context? = null) {
 
     private val webSocketListener = RiskZoneWebSocketListener()
     private val client = KtorClient.httpClient
-
-    /**
-     * URL base del backend.
-     * 
-     * Nota: Esta URL debe cambiarse según el entorno:
-     * - Emulador: http://10.0.2.2:8080/api
-     * - Dispositivo físico: http://TU_IP_LOCAL:8080/api
-     * - Producción: https://tudominio.com/api
-     */
+    
+    // Base de datos Room para cache local (solo si se proporciona contexto)
+    private val database: AppDatabase? = context?.let { AppDatabase.getDatabase(it) }
+    private val shelterDao = database?.shelterDao()
+    private val riskZoneDao = database?.riskZoneDao()
+    private val floodedStreetDao = database?.floodedStreetDao()
+    
     companion object {
-        private const val BASE_URL = "http://192.168.0.19:8080/api"
-      //  private const val BASE_URL = "http://10.154.219.198:8080/api"
+        // Tiempo máximo de validez del cache (24 horas)
+        private const val CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000L // 24 horas
+        
+        /**
+         * URL base del backend.
+         *
+         * Importante:
+         * - Para emulador de Android, "localhost" del PC se mapea a 10.0.2.2.
+         * - Tus rutas en Laravel están bajo el prefijo /api (ej. /api/refugios).
+         *
+         * Por eso dejamos por defecto:
+         *   http://10.0.2.2/api
+         *
+         * Si ejecutas en un dispositivo físico, deberás cambiarla a:
+         *   http://TU_IP_LOCAL/api
+         */
+        private const val BASE_URL = "http://192.168.0.26/api"
     }
 
     /**
-     * Obtiene la lista de refugios desde el backend.
+     * Obtiene la lista de refugios usando estrategia cache-first.
      * 
-     * Esta función realiza una petición HTTP GET al endpoint `/refugios` del backend,
-     * mapea los DTOs a objetos de dominio y los emite como un Flow.
+     * Estrategia:
+     * 1. Primero emite los datos del cache local (si existen y son válidos)
+     * 2. Luego intenta obtener datos frescos del backend
+     * 3. Si el backend es exitoso, actualiza el cache y emite los nuevos datos
+     * 4. Si el backend falla, mantiene los datos del cache (si existen)
      * 
      * Maneja diferentes tipos de errores:
      * - Errores 4xx (petición incorrecta)
@@ -57,56 +85,82 @@ class MapRepository() {
      * - Errores de red (conexión, timeout, etc.)
      * - Errores de deserialización
      * 
-     * @return Flow que emite la lista de refugios o lanza una excepción en caso de error
+     * @return Flow que emite la lista de refugios (primero del cache, luego del backend si es exitoso)
      */
     fun getShelters(): Flow<List<Shelter>> = flow {
+        // 1. Intentar obtener datos del cache local primero
+        val cachedShelters: List<Shelter> = try {
+            shelterDao?.getAllSheltersSync()?.map { it.toDomain() } ?: emptyList()
+        } catch (e: Exception) {
+            Log.w("MapRepository", "Error al leer cache de refugios", e)
+            emptyList()
+        }
+        
+        // 2. Si hay datos en cache, emitirlos inmediatamente
+        if (cachedShelters.isNotEmpty()) {
+            emit(cachedShelters)
+        }
+        
+        // 3. Intentar obtener datos frescos del backend
         try {
-            // 1. Obtener la respuesta completa del backend
             val response = client.get("$BASE_URL/refugios").body<SheltersApiResponse>()
             
-            // 2. Verificar que la respuesta sea exitosa
             if (!response.success) {
                 throw IOException("Error de API: ${response.message}")
             }
 
-            // 3. Mapear los DTOs a objetos de dominio
-            val shelters = response.data.map { it.toDomain() }
+            // Mapear los DTOs a objetos de dominio
+            val freshShelters = response.data.map { it.toDomain() }
             
-            // 4. Emitir la lista mapeada
-            emit(shelters)
+            // 4. Guardar en cache
+            try {
+                val entities = freshShelters.map { it.toEntity() }
+                shelterDao?.insertOrUpdateShelters(entities)
+                Log.d("MapRepository", "Cache de refugios actualizado: ${freshShelters.size} refugios")
+            } catch (e: Exception) {
+                Log.w("MapRepository", "Error al guardar refugios en cache", e)
+                // Continuamos aunque falle el guardado en cache
+            }
+            
+            // 5. Emitir los datos frescos (solo si son diferentes del cache)
+            if (freshShelters != cachedShelters) {
+                emit(freshShelters)
+            }
+            
         } catch (e: ClientRequestException) {
-            // Error 4xx: La petición es incorrecta (ej: URL mal formada, endpoint no encontrado)
-            throw IOException(
-                "No se pudo encontrar el recurso solicitado. Verifique la URL.",
-                e
-            )
+            // Error 4xx: petición inválida o recurso no encontrado
+            Log.w("MapRepository", "Error 4xx al obtener refugios. Cache disponible: ${cachedShelters.isNotEmpty()}", e)
+            // Siempre propagamos el error para que el ViewModel se entere
+            // No emitimos nada aquí, el catch del ViewModel manejará la emisión
+            throw e
         } catch (e: ServerResponseException) {
-            // Error 5xx: El servidor backend falló
-            throw IOException(
-                "El servidor no pudo procesar la solicitud. Intente más tarde.",
-                e
-            )
+            // Error 5xx: problema en el servidor
+            Log.w("MapRepository", "Error 5xx al obtener refugios. Cache disponible: ${cachedShelters.isNotEmpty()}", e)
+            throw e
         } catch (e: IOException) {
-            // Error de red general: No hay conexión, DNS no resuelve, timeout, etc.
-            throw IOException(
-                "Error de conexión. Verifique su red y la dirección del servidor.",
-                e
-            )
+            // Error de red (timeout, sin conexión, etc.)
+            Log.w("MapRepository", "Error de red al obtener refugios. Cache disponible: ${cachedShelters.isNotEmpty()}", e)
+            // Propagamos el error directamente sin emitir nada
+            // El catch del ViewModel emitirá una lista vacía si es necesario
+            throw e
         } catch (e: Exception) {
-            // Captura cualquier otro error inesperado (ej: deserialización, etc.)
+            // Captura cualquier otro error inesperado
             if (e is kotlinx.coroutines.CancellationException) {
                 throw e
             }
-            // Para cualquier OTRA excepción, la envolvemos en una IOException.
-            throw IOException("Ocurrió un error inesperado al procesar los datos: ${e.message}", e)
+            Log.w("MapRepository", "Error inesperado al obtener refugios. Cache disponible: ${cachedShelters.isNotEmpty()}", e)
+            throw e
         }
     }
 
     /**
-     * Obtiene la lista de zonas de riesgo desde el backend.
+     * Obtiene la lista de zonas de riesgo usando estrategia cache-first.
      * 
-     * Esta función realiza una petición HTTP GET al endpoint `/zonas-riesgo` del backend,
-     * mapea los DTOs a objetos de dominio y los emite como un Flow.
+     * Estrategia:
+     * 1. Primero emite los datos del cache local (si existen y son válidos)
+     * 2. Luego intenta obtener datos frescos del backend
+     * 3. Si el backend es exitoso, actualiza el cache y emite los nuevos datos
+     * 4. Si el backend falla, mantiene los datos del cache (si existen)
      * 
      * Maneja diferentes tipos de errores:
      * - Errores 4xx (petición incorrecta)
@@ -114,53 +168,152 @@ class MapRepository() {
      * - Errores de red (conexión, timeout, etc.)
      * - Errores de deserialización
      * 
-     * @return Flow que emite la lista de zonas de riesgo o lanza una excepción en caso de error
+     * @return Flow que emite la lista de zonas de riesgo (primero del cache, luego del backend si es exitoso)
      */
     fun getRiskZones(): Flow<List<RiskZone>> = flow {
+        // 1. Intentar obtener datos del cache local primero
+        val cachedZones: List<RiskZone> = try {
+            riskZoneDao?.getAllRiskZonesSync()?.map { it.toDomain() } ?: emptyList()
+        } catch (e: Exception) {
+            Log.w("MapRepository", "Error al leer cache de zonas de riesgo", e)
+            emptyList()
+        }
+        
+        // 2. Si hay datos en cache, emitirlos inmediatamente
+        if (cachedZones.isNotEmpty()) {
+            emit(cachedZones)
+        }
+        
+        // 3. Intentar obtener datos frescos del backend
         try {
-            // 1. Obtener la respuesta completa del backend
             val response = client.get("$BASE_URL/zonas-riesgo").body<RiskZoneApiResponse>()
             
-            // 2. Verificar que la respuesta sea exitosa
             if (!response.success) {
                 throw IOException("Error de API: ${response.message}")
             }
 
-            // 3. Mapear los DTOs a objetos de dominio
-            val riskZones = response.data.map { it.toDomain() }
+            // Mapear los DTOs a objetos de dominio
+            val freshZones = response.data.map { it.toDomain() }
             
-            // 4. Emitir la lista mapeada
-            emit(riskZones)
+            // 4. Guardar en cache
+            try {
+                val entities = freshZones.map { zone -> zone.toEntity() }
+                riskZoneDao?.insertOrUpdateRiskZones(entities)
+                Log.d("MapRepository", "Cache de zonas de riesgo actualizado: ${freshZones.size} zonas")
+            } catch (e: Exception) {
+                Log.w("MapRepository", "Error al guardar zonas de riesgo en cache", e)
+                // Continuamos aunque falle el guardado en cache
+            }
+            
+            // 5. Emitir los datos frescos (solo si son diferentes del cache)
+            if (freshZones != cachedZones) {
+                emit(freshZones)
+            }
+            
         } catch (e: ClientRequestException) {
-            // Error 4xx: La petición es incorrecta (ej: URL mal formada, endpoint no encontrado)
-            throw IOException(
-                "No se pudo encontrar el recurso solicitado. Verifique la URL.",
-                e
-            )
+            Log.w("MapRepository", "Error 4xx al obtener zonas de riesgo. Cache disponible: ${cachedZones.isNotEmpty()}", e)
+            // Siempre propagamos el error para que el ViewModel se entere
+            // No emitimos nada aquí, el catch del ViewModel manejará la emisión
+            throw e
         } catch (e: ServerResponseException) {
-            // Error 5xx: El servidor backend falló
-            throw IOException(
-                "El servidor no pudo procesar la solicitud. Intente más tarde.",
-                e
-            )
+            Log.w("MapRepository", "Error 5xx al obtener zonas de riesgo. Cache disponible: ${cachedZones.isNotEmpty()}", e)
+            throw e
         } catch (e: IOException) {
-            // Error de red general: No hay conexión, DNS no resuelve, timeout, etc.
-            throw IOException(
-                "Error de conexión. Verifique su red y la dirección del servidor.",
-                e
-            )
+            Log.w("MapRepository", "Error de red al obtener zonas de riesgo. Cache disponible: ${cachedZones.isNotEmpty()}", e)
+            // Propagamos el error directamente sin emitir nada
+            // El catch del ViewModel emitirá una lista vacía si es necesario
+            throw e
         } catch (e: Exception) {
-            // Captura cualquier otro error inesperado (ej: deserialización, etc.)
             if (e is kotlinx.coroutines.CancellationException) {
                 throw e
             }
-            // Para cualquier OTRA excepción, la envolvemos en una IOException.
-            throw IOException("Ocurrió un error inesperado al procesar los datos: ${e.message}", e)
+            Log.w("MapRepository", "Error inesperado al obtener zonas de riesgo. Cache disponible: ${cachedZones.isNotEmpty()}", e)
+            throw e
         }
     }
     // ==================== DATOS SIMULADOS (MOCK) ====================
-    // Estos métodos devuelven datos simulados. En una implementación futura,
-    // serían reemplazados por llamadas reales a un servicio de API.
+    // Estos métodos devuelven datos simulados para uso cuando no hay conexión al backend.
+    // Los datos mock se guardan en cache para permitir funcionamiento offline.
+
+    /**
+     * Obtiene refugios mock para uso cuando no hay conexión al backend.
+     * 
+     * @return Lista de refugios mock
+     */
+    private fun getMockShelters(): List<Shelter> {
+        // Datos mock básicos para desarrollo/testing
+        return listOf(
+            Shelter(
+                id = "mock_1",
+                name = "Refugio Municipal Centro",
+                isOpen = true,
+                address = "Calle Principal 123, Centro",
+                capacity = 200,
+                currentOccupancy = 45,
+                latitude = 19.4326,
+                longitude = -99.1332,
+                phoneContact = "555-1234",
+                responsible = "Juan Pérez"
+            ),
+            Shelter(
+                id = "mock_2",
+                name = "Albergue San José",
+                isOpen = true,
+                address = "Av. Independencia 456",
+                capacity = 150,
+                currentOccupancy = 120,
+                latitude = 19.4350,
+                longitude = -99.1400,
+                phoneContact = "555-5678",
+                responsible = "María González"
+            ),
+            Shelter(
+                id = "mock_3",
+                name = "Centro de Acopio Norte",
+                isOpen = false,
+                address = "Boulevard Norte 789",
+                capacity = 100,
+                currentOccupancy = 0,
+                latitude = 19.4400,
+                longitude = -99.1500,
+                phoneContact = "555-9012",
+                responsible = "Carlos Ramírez"
+            )
+        )
+    }
+    
+    /**
+     * Obtiene zonas de riesgo mock para uso cuando no hay conexión al backend.
+     * 
+     * @return Lista de zonas de riesgo mock
+     */
+    private fun getMockRiskZones(): List<RiskZone> {
+        // Datos mock básicos para desarrollo/testing
+        return listOf(
+            RiskZone(
+                id = "mock_zone_1",
+                name = "Zona Centro",
+                riskLevel = "ALTO",
+                area = listOf(
+                    SerializableLatLng(19.4300, -99.1300),
+                    SerializableLatLng(19.4350, -99.1300),
+                    SerializableLatLng(19.4350, -99.1400),
+                    SerializableLatLng(19.4300, -99.1400)
+                )
+            ),
+            RiskZone(
+                id = "mock_zone_2",
+                name = "Zona Norte",
+                riskLevel = "MEDIO",
+                area = listOf(
+                    SerializableLatLng(19.4400, -99.1500),
+                    SerializableLatLng(19.4450, -99.1500),
+                    SerializableLatLng(19.4450, -99.1600),
+                    SerializableLatLng(19.4400, -99.1600)
+                )
+            )
+        )
+    }
 
     /**
      * Obtiene las calles inundadas simuladas.

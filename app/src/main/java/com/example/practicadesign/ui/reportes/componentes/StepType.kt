@@ -40,17 +40,19 @@ import androidx.compose.ui.unit.sp
  * 
  * @param selectedType Tipo de reporte actualmente seleccionado (null si ninguno)
  * @param onSelect Callback cuando se selecciona un tipo de reporte
+ * @param error Mensaje de error si no se ha seleccionado un tipo (null si no hay error)
  */
 @Preview(showBackground = true)
 @Composable
 fun StepTypeScreenPreview() {
-    StepType(selectedType = null, onSelect = {})
+    StepType(selectedType = null, onSelect = {}, error = null)
 }
 
 @Composable
 fun StepType(
     selectedType: String?,
-    onSelect: (String) -> Unit
+    onSelect: (String) -> Unit,
+    error: String? = null
 ) {
     val types = listOf(
         "inundacion" to "Inundación" to "💧",
@@ -73,6 +75,18 @@ fun StepType(
             text = "Selecciona el tipo de incidente que quieres reportar",
             color = Color(0xFF64748B)
         )
+        
+        // Mensaje de error si existe
+        error?.let { errorMessage ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = errorMessage,
+                color = Color(0xFFEF4444),
+                fontSize = 14.sp,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+        }
+        
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyVerticalGrid(

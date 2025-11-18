@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -21,6 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Lucide
 import com.example.practicadesign.ui.reportes.componentes.*
@@ -49,10 +51,13 @@ fun ReportScreenPreview() {
 @Composable
 fun ReportScreen(
     onClose: () -> Unit = {},
-    reportViewModel: ReportViewModel = viewModel()
+    reportViewModel: ReportViewModel = viewModel(
+        factory = androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
+            .getInstance(LocalContext.current.applicationContext as android.app.Application)
+    )
 ) {
     val uiState by reportViewModel.uiState.collectAsState()
-
+    
     Scaffold(
         topBar = {
             ReportTopBar(
@@ -115,11 +120,16 @@ fun ReportScreen(
                         when (step) {
                             1 -> StepType(
                                 selectedType = uiState.selectedType,
-                                onSelect = { reportViewModel.onTypeSelected(it) }
+                                onSelect = { reportViewModel.onTypeSelected(it) },
+                                error = uiState.getFieldError("type")
                             )
                             2 -> StepLocation(
                                 selectedLocation = uiState.selectedLocation,
-                                onSelect = { reportViewModel.onLocationSelected(it) }
+                                currentCoordinates = uiState.locationCoordinates,
+                                onSelect = { locationType, coordinates ->
+                                    reportViewModel.onLocationSelected(locationType, coordinates)
+                                },
+                                error = uiState.getFieldError("location")
                             )
                             3 -> StepDetails(
                                 title = uiState.title,
@@ -129,7 +139,9 @@ fun ReportScreen(
                                 titleCount = uiState.title.length,
                                 descCount = uiState.description.length,
                                 urgency = uiState.urgency,
-                                onUrgencyChange = { reportViewModel.onUrgencyChange(it) }
+                                onUrgencyChange = { reportViewModel.onUrgencyChange(it) },
+                                titleError = uiState.getFieldError("title"),
+                                descriptionError = uiState.getFieldError("description")
                             )
                             4 -> StepEvidence(
                                 photos = uiState.photos,
@@ -152,7 +164,8 @@ fun ReportScreen(
             // Overlay de éxito cuando se envía el reporte
             if (uiState.successVisible) {
                 SuccessOverlay {
-                    reportViewModel.onSuccessOverlayDismissed()
+                    // Resetea el estado del formulario completamente
+                    reportViewModel.startNewReport()
                     // Cierra la pantalla después de la animación
                     onClose()
                 }

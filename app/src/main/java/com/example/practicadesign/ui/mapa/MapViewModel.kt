@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -47,7 +48,7 @@ import java.util.Locale
  */
 data class MapUiState(
     val isLoading: Boolean = true,
-    val networkError: String? = null,
+    val networkError: NetworkErrorState = NetworkErrorState.None,
     val isMenuOpen: Boolean = false,
     val userLocation: LatLng? = null,
     val bannerState: BannerState = BannerState.Safe,
@@ -86,7 +87,8 @@ data class MapFilters(
 class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(MapUiState())
     val uiState = _uiState.asStateFlow()
-    private val mapRepository = MapRepository()
+    // Pasa el contexto de la aplicación para habilitar el cache local
+    private val mapRepository = MapRepository(getApplication())
     private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(getApplication())
     private val geocoder = Geocoder(getApplication(), Locale.getDefault())
 
@@ -217,39 +219,90 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             try {
+                var hadNetworkError = false
+                var sheltersHadCache = false
+                var zonesHadCache = false
+
                 // Ejecuta todas las operaciones en paralelo con manejo individual de errores
                 val sheltersDeferred = async {
+                    var sheltersResult = emptyList<Shelter>()
+                    var errorOccurred = false
+                    
                     try {
-                        mapRepository.getShelters().catch { 
-                            Log.e("MapViewModel", "Error al cargar refugios", it)
-                            emit(emptyList()) 
-                        }.first()
+                        // Intentamos obtener los datos
+                        // Usamos take(1) para obtener solo el primer valor, pero catch capturará errores
+                        mapRepository.getShelters()
+                            .catch { e ->
+                                Log.e("MapViewModel", "Excepción al cargar refugios", e)
+                                hadNetworkError = true
+                                errorOccurred = true
+                                // Si el Flow falla, emitimos una lista vacía para que take(1) pueda continuar
+                                emit(emptyList())
+                            }
+                            .take(1)
+                            .collect { shelters ->
+                                sheltersResult = shelters
+                                // Si hay datos, significa que hay cache (porque el Repository emite cache primero)
+                                if (shelters.isNotEmpty()) {
+                                    sheltersHadCache = true
+                                }
+                            }
                     } catch (e: Exception) {
-                        Log.e("MapViewModel", "Excepción al cargar refugios", e)
-                        emptyList<Shelter>()
+                        Log.e("MapViewModel", "Excepción al cargar refugios (catch externo)", e)
+                        hadNetworkError = true
+                        errorOccurred = true
                     }
+                    
+                    // Si hubo error pero hay datos, significa que hay cache
+                    if (errorOccurred && sheltersResult.isNotEmpty()) {
+                        sheltersHadCache = true
+                    }
+                    
+                    sheltersResult
                 }
                 
                 val zonesDeferred = async {
+                    var zonesResult = emptyList<RiskZone>()
+                    var errorOccurred = false
+                    
                     try {
-                        mapRepository.getRiskZones().catch { 
-                            Log.e("MapViewModel", "Error al cargar zonas de riesgo", it)
-                            emit(emptyList()) 
-                        }.first()
+                        // Intentamos obtener los datos
+                        mapRepository.getRiskZones()
+                            .catch { e ->
+                                Log.e("MapViewModel", "Excepción al cargar zonas de riesgo", e)
+                                hadNetworkError = true
+                                errorOccurred = true
+                                // Si el Flow falla, emitimos una lista vacía para que take(1) pueda continuar
+                                emit(emptyList())
+                            }
+                            .take(1)
+                            .collect { zones ->
+                                zonesResult = zones
+                                // Si hay datos, significa que hay cache (porque el Repository emite cache primero)
+                                if (zones.isNotEmpty()) {
+                                    zonesHadCache = true
+                                }
+                            }
                     } catch (e: Exception) {
-                        Log.e("MapViewModel", "Excepción al cargar zonas de riesgo", e)
-                        emptyList<RiskZone>()
+                        Log.e("MapViewModel", "Excepción al cargar zonas de riesgo (catch externo)", e)
+                        hadNetworkError = true
+                        errorOccurred = true
                     }
+                    
+                    // Si hubo error pero hay datos, significa que hay cache
+                    if (errorOccurred && zonesResult.isNotEmpty()) {
+                        zonesHadCache = true
+                    }
+                    
+                    zonesResult
                 }
                 
                 val streetsDeferred = async {
                     try {
-                        mapRepository.getMockFloodedStreets().catch { 
-                            Log.e("MapViewModel", "Error al cargar calles inundadas", it)
-                            emit(emptyList()) 
-                        }.first()
+                        mapRepository.getMockFloodedStreets().first()
                     } catch (e: Exception) {
                         Log.e("MapViewModel", "Excepción al cargar calles inundadas", e)
+                        // Para calles inundadas mock no lo tratamos como error de red crítico
                         emptyList<FloodedStreet>()
                     }
                 }
@@ -259,6 +312,15 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 val zones = zonesDeferred.await()
                 val streets = streetsDeferred.await()
 
+                // Determinar el estado de error de red
+                // Si hubo error de red Y hay datos (cache), es UsingCache
+                // Si hubo error de red Y NO hay datos, es NoConnection
+                val networkErrorState = when {
+                    !hadNetworkError -> NetworkErrorState.None
+                    sheltersHadCache || zonesHadCache -> NetworkErrorState.UsingCache
+                    else -> NetworkErrorState.NoConnection
+                }
+
                 // Actualiza todo de una vez
                 _uiState.update {
                     it.copy(
@@ -266,7 +328,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                         riskZones = zones,
                         floodedStreets = streets,
                         isLoading = false,
-                        networkError = null
+                        networkError = networkErrorState
                     )
                 }
             } catch (e: Exception) {
@@ -277,7 +339,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        networkError = "Error al cargar los datos del mapa. Verifique su conexión."
+                        networkError = NetworkErrorState.NoConnection
                     )
                 }
             }
@@ -447,6 +509,58 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 searchQuery = TextFieldValue(""), 
                 searchResults = emptyList()
             ) 
+        }
+    }
+    
+    /**
+     * Maneja la selección de un resultado de búsqueda.
+     * Busca el elemento correspondiente (refugio o zona de riesgo) y lo selecciona
+     * para mostrar en el bottom sheet.
+     * 
+     * @param searchResult El resultado de búsqueda seleccionado
+     * @return La posición (LatLng) del elemento seleccionado para centrar la cámara,
+     *         o null si no se encuentra el elemento
+     */
+    fun onSearchResultSelected(searchResult: SearchResult): LatLng? {
+        val currentState = _uiState.value
+        
+        return when (searchResult.type) {
+            "Refugio" -> {
+                // Busca el refugio por ID
+                val shelter = currentState.shelters.find { it.id == searchResult.id }
+                if (shelter != null) {
+                    // Selecciona el refugio para abrir el bottom sheet
+                    onShelterSelected(shelter)
+                    // Retorna la posición del refugio
+                    shelter.position
+                } else {
+                    Log.w("MapViewModel", "Refugio no encontrado: ${searchResult.id}")
+                    null
+                }
+            }
+            "Zona de Riesgo" -> {
+                // Busca la zona de riesgo por ID
+                val riskZone = currentState.riskZones.find { it.id == searchResult.id }
+                if (riskZone != null) {
+                    // Selecciona la zona de riesgo para abrir el bottom sheet
+                    onZoneRiskSelected(riskZone)
+                    // Retorna el centro aproximado de la zona (primer punto del polígono)
+                    // Idealmente, calcularíamos el centroide real del polígono
+                    if (riskZone.area.isNotEmpty()) {
+                        riskZone.area.first().toGoogleLatLng()
+                    } else {
+                        Log.w("MapViewModel", "Zona de riesgo sin área definida: ${searchResult.id}")
+                        null
+                    }
+                } else {
+                    Log.w("MapViewModel", "Zona de riesgo no encontrada: ${searchResult.id}")
+                    null
+                }
+            }
+            else -> {
+                Log.w("MapViewModel", "Tipo de resultado desconocido: ${searchResult.type}")
+                null
+            }
         }
     }
 

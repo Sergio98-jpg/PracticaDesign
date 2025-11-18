@@ -36,15 +36,15 @@ data class ShelterDto(
     @SerialName("estado_refugio_id")
     val estadoRefugioId: Int,
     @SerialName("telefono_contacto")
-    val telefonoContacto: String,
-    val responsable: String,
+    val telefonoContacto: String? = null,  // Puede ser null en el backend
+    val responsable: String? = null,       // Puede ser null en el backend
     val latitud: String,
     val longitud: String,
     @SerialName("created_at")
-    val createdAt: String,
+    val createdAt: String? = null,         // Puede ser null en el backend
     @SerialName("updated_at")
-    val updatedAt: String,
-    val municipio: MunicipioDto,
+    val updatedAt: String? = null,         // Puede ser null en el backend
+    val municipio: MunicipioDto? = null,   // Puede ser null si no hay relación
     val estado: EstadoRefugioDto,
     val servicios: List<ServicioDto> = emptyList()
 )
@@ -126,20 +126,35 @@ data class Shelter(
  * Mapea los datos del formato del backend al formato utilizado en la aplicación,
  * incluyendo la conversión de tipos y validaciones.
  * 
+ * Estados del backend:
+ * - OPERATIVO: Refugio operativo y disponible (abierto)
+ * - LLENO: Refugio al máximo de capacidad (abierto pero lleno)
+ * - MANTENIMIENTO: Refugio en mantenimiento (cerrado)
+ * - CERRADO: Refugio temporalmente cerrado (cerrado)
+ * - EMERGENCIA: Solo para emergencias críticas (considerado abierto con restricciones)
+ * 
  * @return Objeto Shelter con los datos del refugio
  */
 fun ShelterDto.toDomain(): Shelter {
+    // Un refugio se considera "abierto" si está en estado OPERATIVO, LLENO o EMERGENCIA
+    // Se considera "cerrado" si está en MANTENIMIENTO o CERRADO
+    val isOpen = when (estado.codigo) {
+        "OPERATIVO", "LLENO", "EMERGENCIA" -> true
+        "MANTENIMIENTO", "CERRADO" -> false
+        else -> false // Por defecto cerrado si hay un estado desconocido
+    }
+    
     return Shelter(
         id = idRefugio.toString(),
         name = nombre,
-        isOpen = estado.codigo == "ABIERTO",
+        isOpen = isOpen,
         address = direccion,
         capacity = capacidadTotal,
         currentOccupancy = capacidadActual,
         latitude = latitud.toDoubleOrNull() ?: 0.0,
         longitude = longitud.toDoubleOrNull() ?: 0.0,
-        phoneContact = telefonoContacto,
-        responsible = responsable
+        phoneContact = telefonoContacto ?: "",  // Valor por defecto si es null
+        responsible = responsable ?: ""         // Valor por defecto si es null
     )
 }
 

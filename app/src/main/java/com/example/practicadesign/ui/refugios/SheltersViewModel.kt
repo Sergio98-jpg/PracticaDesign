@@ -1,7 +1,8 @@
 package com.example.practicadesign.ui.refugios
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.practicadesign.data.MapRepository
 import kotlinx.coroutines.delay
@@ -16,15 +17,16 @@ import kotlinx.coroutines.launch
  * ViewModel para la pantalla de Refugios ([SheltersScreen]).
  *
  * Se encarga de la lógica de negocio:
- * 1. Obtener la lista de refugios desde el [MapRepository].
+ * 1. Obtener la lista de refugios desde el [MapRepository] (con cache local).
  * 2. Manejar el estado de carga y los posibles errores.
  * 3. Procesar los eventos del usuario, como cambiar filtros o expandir/colapsar un ítem.
  * 4. Exponer un único [StateFlow] de [SheltersUiState] que la UI puede observar.
  */
-open class SheltersViewModel : ViewModel() {
+open class SheltersViewModel(application: Application) : AndroidViewModel(application) {
 
     // Repositorio para obtener los datos. En un futuro se inyectaría con Hilt/Koin.
-    private val repository = MapRepository()
+    // Pasa el contexto de la aplicación para habilitar el cache local
+    private val repository = MapRepository(getApplication())
 
     // Flujo de estado mutable y privado. Solo el ViewModel puede modificarlo.
     protected val _uiState = MutableStateFlow(SheltersUiState())

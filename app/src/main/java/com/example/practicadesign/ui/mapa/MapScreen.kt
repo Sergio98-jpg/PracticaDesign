@@ -3,6 +3,7 @@ package com.example.practicadesign.ui.mapa
 import android.Manifest
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +19,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -49,14 +52,16 @@ import kotlinx.coroutines.launch
 /**
  * Convierte un drawable vectorial en un BitmapDescriptor para usar como icono de marcador.
  * 
+ * Esta función NO es un composable para poder usarla dentro de `remember` y cachearla eficientemente.
+ * 
+ * @param context Contexto de Android necesario para acceder a los recursos
  * @param vectorResId ID del recurso drawable vectorial
  * @return BitmapDescriptor para usar en un Marker, o null si falla la conversión
  */
-@Composable
 private fun bitmapDescriptorFromVector(
+    context: android.content.Context,
     @DrawableRes vectorResId: Int
 ): BitmapDescriptor? {
-    val context = LocalContext.current
     val drawable = ContextCompat.getDrawable(context, vectorResId) ?: return null
 
     drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
@@ -102,9 +107,9 @@ fun MapScreen(
 
     // Muestra un mensaje de error si hay problemas de red
     LaunchedEffect(uiState.networkError) {
-        uiState.networkError?.let { error ->
+        uiState.networkError.getMessage()?.let { errorMessage ->
             snackbarHostState.showSnackbar(
-                message = error,
+                message = errorMessage,
                 duration = SnackbarDuration.Short
             )
         }
@@ -178,7 +183,6 @@ fun MapScreen(
 
     var showFilterMenu by remember { mutableStateOf(false) }
 
-
     // Bottom sheet para mostrar detalles de refugio o zona de riesgo seleccionada
     val sheetState = rememberModalBottomSheetState()
     val isSheetVisible = uiState.selectedShelter != null || uiState.selectedRiskZone != null
@@ -198,7 +202,11 @@ fun MapScreen(
             }
         }
     }
-    Box(modifier = Modifier.fillMaxSize()) {
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
         // Altura estándar para el BottomNav (ajustable según necesidades)
         val bottomNavHeight = 80.dp
         val minZoomToShowMarkers = 13.5f
@@ -210,15 +218,32 @@ fun MapScreen(
             contentPadding = PaddingValues(bottom = bottomNavHeight),
             uiSettings = MapUiSettings(zoomControlsEnabled = false)
         ) {
+            // ==================== OPTIMIZACIONES DE RENDIMIENTO ====================
+            // Cachear los íconos DENTRO del lambda de GoogleMap para asegurar que Google Maps esté inicializado
+            // Estos íconos se crean UNA VEZ cuando el mapa se inicializa y se reutilizan en todas las recomposiciones
+            val iconUser = remember { bitmapDescriptorFromVector(context, R.drawable.mapa_pin_wrapper) }
+            val iconShelterOpen = remember { bitmapDescriptorFromVector(context, R.drawable.refugio_wrapper) }
+            val iconShelterClosed = remember { bitmapDescriptorFromVector(context, R.drawable.refugio2_wrapper) }
+            
             // Marcador de ubicación del usuario
             uiState.userLocation?.let { userLocation ->
-                val iconUser = bitmapDescriptorFromVector(R.drawable.mapa_pin_wrapper)
+
+                // Estado del marcador para controlar la InfoWindow
+                val markerState = rememberMarkerState(position = userLocation)
+
                 Marker(
-                    state = rememberMarkerState(position = userLocation),
+                    state = markerState,
                     title = "Mi Ubicación",
                     icon = iconUser,
                     snippet = "Aquí es donde estoy",
-                    anchor = Offset(0.5f, 0.5f)
+                    anchor = Offset(0.5f, 0.5f),
+                    onClick = {
+                        // Muestra la InfoWindow sin centrar el mapa
+                        markerState.showInfoWindow()
+                        // Retorna true para indicar que el evento ha sido consumido
+                        // y prevenir el centrado automático del mapa
+                        true
+                    }
                 )
             }
 
@@ -226,15 +251,23 @@ fun MapScreen(
             // Zonas de riesgo (polígonos)
             if (cameraPositionState.position.zoom >= minZoomToShowMarkers && uiState.filters.showRiskZones) {
                 uiState.riskZones.forEach { riskZone ->
-
-                    val color = when (riskZone.riskLevel) {
-                        "ALTO" -> Color.Red.copy(alpha = 0.5f) // O BannerState.DANGER.color
-                        "MEDIO" -> Color.Yellow.copy(alpha = 0.5f) // O BannerState.WARNING.color
-                        "BAJO" -> Color.Green.copy(alpha = 0.5f) // O BannerState.SAFE.color
-                        else -> Color.Gray.copy(alpha = 0.5f)
+                    // Cachear el color y los puntos para evitar recalcularlos en cada frame
+                    val color = remember(riskZone.riskLevel) {
+                        when (riskZone.riskLevel) {
+                            "ALTO" -> Color.Red.copy(alpha = 0.5f)
+                            "MEDIO" -> Color.Yellow.copy(alpha = 0.5f)
+                            "BAJO" -> Color.Green.copy(alpha = 0.5f)
+                            else -> Color.Gray.copy(alpha = 0.5f)
+                        }
                     }
+                    
+                    // Cachear la conversión de coordenadas para evitar mapear en cada frame
+                    val points = remember(riskZone.area) {
+                        riskZone.area.map { LatLng(it.latitude, it.longitude) }
+                    }
+                    
                     Polygon(
-                        points = riskZone.area.map { LatLng(it.latitude, it.longitude) },
+                        points = points,
                         fillColor = color,
                         strokeWidth = 3f,
                         strokeColor = color.copy(alpha = 1f),
@@ -249,9 +282,9 @@ fun MapScreen(
             // Refugios (marcadores)
             if (cameraPositionState.position.zoom >= minZoomToShowMarkers && uiState.filters.showShelters) {
                 uiState.shelters.forEach { shelter ->
-                    val icon = bitmapDescriptorFromVector(
-                        if (shelter.isOpen) R.drawable.refugio_wrapper else R.drawable.refugio2_wrapper
-                    )
+                    // Usar el ícono cacheado según el estado del refugio (OPTIMIZACIÓN CRÍTICA)
+                    val icon = if (shelter.isOpen) iconShelterOpen else iconShelterClosed
+                    
                     Marker(
                         state = rememberMarkerState(position = shelter.position),
                         icon = icon,
@@ -266,8 +299,13 @@ fun MapScreen(
             // Calles inundadas (polilíneas)
             if (cameraPositionState.position.zoom >= minZoomToShowMarkers && uiState.filters.showFloodedStreets) {
                 uiState.floodedStreets.forEach { street ->
+                    // Cachear la conversión de coordenadas para evitar mapear en cada frame
+                    val points = remember(street.path) {
+                        street.path.map { it.toGoogleLatLng() }
+                    }
+                    
                     Polyline(
-                        points = street.path.map { it.toGoogleLatLng() },
+                        points = points,
                         color = Color(0xFF3B82F6),
                         width = 15f,
                         geodesic = true
@@ -309,21 +347,31 @@ fun MapScreen(
                     .align(Alignment.TopCenter)
                     .padding(top = 110.dp, start = 16.dp, end = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 StatusBanner(state = uiState.bannerState)
-                FloatingSearchButton(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    onSearchClick = { mapViewModel.onSearchActive() }
+
+                // Banner de error de conexión
+                NetworkErrorBanner(
+                    message = uiState.networkError.getMessage(),
+                    modifier = Modifier.padding(top = 4.dp)
                 )
-                StatsRow()
+
+                // Mostrar búsqueda solo si hay datos disponibles (cache o conexión exitosa)
+                if (uiState.shelters.isNotEmpty() || uiState.riskZones.isNotEmpty()) {
+                    FloatingSearchButton(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        onSearchClick = { mapViewModel.onSearchActive() }
+                    )
+                }
+               // StatsRow()
             }
 
             // Botones flotantes de acción (FABs)
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 100.dp),
+                    .padding(end = 16.dp, bottom = 50.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Botón para centrar en la ubicación del usuario
@@ -432,8 +480,22 @@ fun MapScreen(
                 onQueryChange = { mapViewModel.onSearchQueryChange(it) },
                 onDismiss = { mapViewModel.onSearchInactive() },
                 onItemSelected = { result ->
+                    // Obtener la posición del elemento seleccionado y seleccionarlo en el ViewModel
+                    val targetPosition = mapViewModel.onSearchResultSelected(result)
+                    
+                    // Cerrar el overlay de búsqueda
                     mapViewModel.onSearchInactive()
-                    // TODO: Centrar cámara en el resultado seleccionado
+                    
+                    // Centrar la cámara en el resultado seleccionado
+                    targetPosition?.let { position ->
+                        coroutineScope.launch {
+                            // Animar la cámara a la ubicación del resultado con zoom apropiado
+                            cameraPositionState.animate(
+                                update = CameraUpdateFactory.newLatLngZoom(position, 17f),
+                                durationMs = 1000
+                            )
+                        }
+                    }
                 }
             )
         }

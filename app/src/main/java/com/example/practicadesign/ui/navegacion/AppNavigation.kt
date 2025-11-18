@@ -46,12 +46,27 @@ fun AppNavigation() {
     // ViewModel para compartir el estado de autenticación a través de las pantallas.
     val authViewModel: AuthViewModel = viewModel()
 
-    // Observa el rol del usuario desde el ViewModel.
+    // Observa el estado de autenticación desde el ViewModel.
     // Esto permite que la navegación reaccione automáticamente a cambios en el estado de autenticación.
-   // val userRole by authViewModel.userRole.collectAsState()
+    val authState by authViewModel.authState.collectAsState()
     
-    // MODO DE DESARROLLO (manual): Si necesitas forzar un rol para testing, descomenta la siguiente línea:
-     val userRole: String? = "admin" // Puedes cambiar "admin" por "user" o null para probar.
+    // MODO DE DESARROLLO (manual): Si necesitas forzar un estado para testing, descomenta las siguientes líneas:
+    // val userRole: String? = "admin" // Puedes cambiar "admin" por "user" o null para probar.
+    // val isLoggedIn = userRole != null
+    
+    // Usa el estado real del ViewModel (o el hardcodeado si está activo el modo desarrollo)
+    val userRole = authState.userRole
+    val isLoggedIn = authState.isLoggedIn
+    
+    // MODO DE DESARROLLO: Inicializa automáticamente el AuthViewModel con el estado de admin
+    // Descomenta la siguiente línea para activar el modo desarrollo con admin:
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        // Solo inicializa si el estado está vacío (no se ha hecho login)
+        if (!authState.isLoggedIn) {
+            // MODO DESARROLLO: Activa esta línea para forzar login como admin
+            authViewModel.onLoginSuccess("admin")
+        }
+    }
 
     // --- LÓGICA DE UI ---
     // Obtiene la ruta actual para decidir si mostrar o no la barra de navegación.
@@ -102,6 +117,11 @@ private fun AppNavHost(
 ) {
     // Especificaciones de animación para reutilizar
     val defaultFadeSpec = tween<Float>(300)
+    
+    // Observa el estado de autenticación para proteger rutas
+    // Usa el mismo estado que se observa en AppNavigation() para mantener consistencia
+    val authState by authViewModel.authState.collectAsState()
+    val isLoggedIn = authState.isLoggedIn
 
     NavHost(
         navController = navController,
@@ -131,7 +151,19 @@ private fun AppNavHost(
             enterTransition = { fadeIn(animationSpec = defaultFadeSpec) },
             exitTransition = { fadeOut(animationSpec = defaultFadeSpec) }
         ) {
-            ReportScreen(onClose = { navController.popBackStack() })
+            // Protección: Si no está autenticado, no mostrar la pantalla
+            // (La navegación ya está protegida por LaunchedEffect, pero esto es una capa adicional)
+            if (isLoggedIn) {
+                ReportScreen(onClose = { navController.popBackStack() })
+            } else {
+                // Si por alguna razón llegamos aquí sin autenticación, redirigir a Login
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Mapa.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            }
         }
 
         composable(
@@ -139,18 +171,30 @@ private fun AppNavHost(
             enterTransition = { fadeIn(animationSpec = defaultFadeSpec) },
             exitTransition = { fadeOut(animationSpec = defaultFadeSpec) }
         ) {
-            ProfileScreen(
-                onBack = { navController.popBackStack() },
-                onLogout = {
-                    // Cierra sesión en el AuthViewModel
-                    authViewModel.onLogout()
-                    // Navega de vuelta al mapa después de cerrar sesión
-                    navController.navigate(Screen.Mapa.route) {
+            // Protección: Si no está autenticado, no mostrar la pantalla
+            // (La navegación ya está protegida por LaunchedEffect, pero esto es una capa adicional)
+            if (isLoggedIn) {
+                ProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onLogout = {
+                        // Cierra sesión en el AuthViewModel
+                        authViewModel.onLogout()
+                        // Navega de vuelta al mapa después de cerrar sesión
+                        navController.navigate(Screen.Mapa.route) {
+                            popUpTo(Screen.Mapa.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            } else {
+                // Si por alguna razón llegamos aquí sin autenticación, redirigir a Login
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Mapa.route) { inclusive = false }
                         launchSingleTop = true
                     }
                 }
-            )
+            }
         }
 
         // --- PANTALLAS SECUNDARIAS (Transición Slide) ---
