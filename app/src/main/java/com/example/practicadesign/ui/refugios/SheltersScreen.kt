@@ -22,6 +22,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.example.practicadesign.ui.navegacion.Screen
 import com.example.practicadesign.ui.refugios.componentes.ErrorStateComponent
 import com.example.practicadesign.ui.refugios.componentes.QuickFiltersRow
 import com.example.practicadesign.ui.refugios.componentes.ShelterDetailCard
@@ -51,6 +53,7 @@ private fun SheltersScreenPreview() {
 
 @Composable
 fun SheltersScreen(
+    navController: NavController? = null, // NavController opcional para navegación
     sheltersViewModel: SheltersViewModel = viewModel(
         factory = androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
             .getInstance(LocalContext.current.applicationContext as android.app.Application)
@@ -109,6 +112,7 @@ fun SheltersScreen(
                     // Muestra la lista de refugios una vez que los datos están listos.
                     SheltersList(
                         uiState = uiState,
+                        navController = navController,
                         onShelterClick = { shelterId -> sheltersViewModel.onShelterToggled(shelterId) }
                     )
                 }
@@ -128,6 +132,7 @@ fun SheltersScreen(
 @Composable
 private fun SheltersList(
     uiState: SheltersUiState,
+    navController: NavController?,
     onShelterClick: (shelterId: String) -> Unit
 ) {
     LazyColumn(
@@ -153,6 +158,7 @@ private fun SheltersList(
                 // El detalle se muestra directamente debajo del ítem.
                 ShelterDetailCard(
                     shelter = shelter,
+                    navController = navController,
                     onClose = { onShelterClick(shelter.id) } // Tocar el botón de cerrar también invoca el toggle
                 )
             }

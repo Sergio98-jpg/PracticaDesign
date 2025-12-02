@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
 // import androidx.wear.compose.foundation.weight
 import com.composables.icons.lucide.Droplets
 import com.composables.icons.lucide.Eye
@@ -38,13 +40,20 @@ import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Mail
 import com.composables.icons.lucide.Phone
 import com.composables.icons.lucide.User
+import com.example.practicadesign.ui.auth.AuthViewModel
 import com.example.practicadesign.ui.mapa.componentes.FloatingMenu
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (String) -> Unit = {}
+    onLoginSuccess: (String) -> Unit = {},
+    authViewModel: AuthViewModel = viewModel(
+        factory = androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
+            .getInstance(LocalContext.current.applicationContext as android.app.Application)
+    )
 ) {
+    val authState by authViewModel.authState.collectAsState()
+    
     var isLogin by remember { mutableStateOf(true) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -156,11 +165,25 @@ fun LoginScreen(
                         LoginForm(
                             email = email,
                             password = password,
-                            onEmailChange = { email = it },
-                            onPasswordChange = { password = it },
+                            isLoading = authState.isLoading,
+                            errorMessage = authState.errorMessage,
+                            onEmailChange = { 
+                                email = it
+                                authViewModel.clearError()
+                            },
+                            onPasswordChange = { 
+                                password = it
+                                authViewModel.clearError()
+                            },
                             onLogin = {
-                                val role = if (email.startsWith("admin")) "admin" else "user"
-                                onLoginSuccess(role)
+                                authViewModel.login(
+                                    email = email.trim(),
+                                    password = password,
+                                    onSuccess = {
+                                        onLoginSuccess(authState.userRole ?: "user")
+                                    },
+                                    onError = { /* El error ya se muestra en el estado */ }
+                                )
                             }
                         )
                     } else {
@@ -171,12 +194,57 @@ fun LoginScreen(
                             phone = phone,
                             password = password,
                             confirmPassword = confirmPassword,
-                            onNameChange = { name = it },
-                            onEmailChange = { email = it },
-                            onPhoneChange = { phone = it },
-                            onPasswordChange = { password = it },
-                            onConfirmPasswordChange = { confirmPassword = it },
-                            onRegister = { /* TODO: Lógica de registro */ }
+                            isLoading = authState.isLoading,
+                            errorMessage = authState.errorMessage,
+                            onNameChange = { 
+                                name = it
+                                authViewModel.clearError()
+                            },
+                            onEmailChange = { 
+                                email = it
+                                authViewModel.clearError()
+                            },
+                            onPhoneChange = { 
+                                phone = it
+                                authViewModel.clearError()
+                            },
+                            onPasswordChange = { 
+                                password = it
+                                authViewModel.clearError()
+                            },
+                            onConfirmPasswordChange = { 
+                                confirmPassword = it
+                                authViewModel.clearError()
+                            },
+                            onRegister = {
+                                // Separar nombre completo en nombre y apellido
+                                val nameParts = name.trim().split(" ", limit = 2)
+                                val nombre = nameParts.getOrElse(0) { "" }
+                                val apellido = nameParts.getOrElse(1) { "" }
+                                
+                                // Validaciones básicas
+                                if (nombre.isBlank() || apellido.isBlank()) {
+                                    // El error se mostrará desde el ViewModel
+                                    return@onRegister
+                                }
+                                if (password != confirmPassword) {
+                                    // El error se mostrará desde el ViewModel
+                                    return@onRegister
+                                }
+                                
+                                authViewModel.register(
+                                    nombre = nombre,
+                                    apellido = apellido,
+                                    email = email.trim(),
+                                    password = password,
+                                    passwordConfirmation = confirmPassword,
+                                    telefono = phone.takeIf { it.isNotBlank() },
+                                    onSuccess = {
+                                        onLoginSuccess(authState.userRole ?: "user")
+                                    },
+                                    onError = { /* El error ya se muestra en el estado */ }
+                                )
+                            }
                         )
                     }
                 }
@@ -227,6 +295,8 @@ fun RowScope.TabButton( // <-- ✅ 1. Cambia el receptor a RowScope
 fun LoginForm(
     email: String,
     password: String,
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onLogin: () -> Unit
@@ -244,6 +314,17 @@ fun LoginForm(
         Spacer(modifier = Modifier.height(16.dp))
         AuthTextField(label = "Contraseña", value = password, onValueChange = onPasswordChange, icon = Lucide.Lock, isPassword = true)
 
+        // Mostrar mensaje de error si existe
+        if (errorMessage != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = errorMessage,
+                color = Color(0xFFEF4444),
+                fontSize = 14.sp,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             "¿Olvidaste tu contraseña?",
@@ -255,13 +336,22 @@ fun LoginForm(
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = onLogin,
+            enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF0891B2)
             )
         ) {
-            Text("Iniciar Sesión", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Iniciar Sesión", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -273,6 +363,8 @@ fun RegisterForm(
     phone: String,
     password: String,
     confirmPassword: String,
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
     onNameChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
@@ -298,15 +390,35 @@ fun RegisterForm(
         AuthTextField(label = "Contraseña", value = password, onValueChange = onPasswordChange, icon = Lucide.Lock, isPassword = true)
         Spacer(modifier = Modifier.height(16.dp))
         AuthTextField(label = "Confirmar contraseña", value = confirmPassword, onValueChange = onConfirmPasswordChange, icon = Lucide.Lock, isPassword = true)
+        
+        // Mostrar mensaje de error si existe
+        if (errorMessage != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = errorMessage,
+                color = Color(0xFFEF4444),
+                fontSize = 14.sp,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = onRegister,
+            enabled = !isLoading && name.isNotBlank() && email.isNotBlank() && password.isNotBlank() && confirmPassword.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0891B2))
         ) {
-            Text("Crear Cuenta", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Crear Cuenta", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

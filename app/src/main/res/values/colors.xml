@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Colores legacy (mantenidos para compatibilidad) -->
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
@@ -7,4 +8,40 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <!-- Paleta de colores - Tema Claro -->
+    <!-- Colores primarios -->
+    <color name="primary_light">#0891B2</color>
+    <color name="primary_variant_light">#0E7490</color>
+    <color name="primary_container_light">#F0FDFA</color>
+    
+    <!-- Colores secundarios -->
+    <color name="secondary_light">#8B5CF6</color>
+    <color name="secondary_variant_light">#7C3AED</color>
+    
+    <!-- Colores de acento -->
+    <color name="accent_light">#F59E0B</color>
+    <color name="accent_variant_light">#D97706</color>
+    
+    <!-- Colores de superficie -->
+    <color name="background_light">#F8FAFC</color>
+    <color name="surface_light">#FFFFFF</color>
+    <color name="surface_variant_light">#F1F5F9</color>
+    
+    <!-- Colores de texto -->
+    <color name="on_primary_light">#FFFFFF</color>
+    <color name="on_background_light">#0F172A</color>
+    <color name="on_surface_light">#0F172A</color>
+    <color name="on_surface_variant_light">#64748B</color>
+    
+    <!-- Colores de estado -->
+    <color name="error_light">#EF4444</color>
+    <color name="success_light">#10B981</color>
+    <color name="warning_light">#F59E0B</color>
+    <color name="info_light">#0891B2</color>
+    
+    <!-- Colores de riesgo -->
+    <color name="risk_high_light">#EF4444</color>
+    <color name="risk_medium_light">#F59E0B</color>
+    <color name="risk_low_light">#10B981</color>
 </resources>

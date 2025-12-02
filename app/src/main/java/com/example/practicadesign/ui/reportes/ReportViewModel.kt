@@ -53,12 +53,39 @@ class ReportViewModel(application: Application) : AndroidViewModel(application) 
     // Flujo de estado inmutable y público. La UI solo puede leerlo.
     val uiState: StateFlow<ReportUiState> = _uiState.asStateFlow()
     
+    // Flujo para verificar si hay un borrador pendiente
+    private val _hasDraft = MutableStateFlow(false)
+    val hasDraft: StateFlow<Boolean> = _hasDraft.asStateFlow()
+    
     /**
      * Inicializa el ViewModel cargando el borrador guardado si existe.
      */
     init {
         // Solo carga el borrador si no se ha deshabilitado la persistencia
         loadDraft()
+        checkDraftExists()
+    }
+    
+    /**
+     * Verifica si existe un borrador pendiente en la base de datos.
+     */
+    private fun checkDraftExists() {
+        viewModelScope.launch {
+            try {
+                val draft = draftDao.getLatestDraftSync()
+                _hasDraft.value = draft != null
+            } catch (e: Exception) {
+                Log.e("ReportViewModel", "Error al verificar borrador", e)
+                _hasDraft.value = false
+            }
+        }
+    }
+    
+    /**
+     * Actualiza el estado de hasDraft cuando se crea o elimina un borrador.
+     */
+    fun refreshDraftStatus() {
+        checkDraftExists()
     }
 
 
@@ -77,6 +104,9 @@ class ReportViewModel(application: Application) : AndroidViewModel(application) 
             
             // 3. Reactivar la persistencia para el nuevo reporte
             disableDraftPersistence = false
+            
+            // 4. Actualizar el estado de hasDraft
+            _hasDraft.value = false
             
             Log.i("ReportViewModel", "======= NUEVO REPORTE INICIADO (BD y UI limpios) =======")
         }
@@ -123,6 +153,7 @@ class ReportViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val entity = _uiState.value.toEntity()
                 draftDao.saveDraft(entity)
+                _hasDraft.value = true // Actualizar estado cuando se guarda
                 Log.d("ReportViewModel", "✓ Borrador guardado: paso ${_uiState.value.currentStep}")
             } catch (e: Exception) {
                 Log.e("ReportViewModel", "Error al guardar borrador", e)

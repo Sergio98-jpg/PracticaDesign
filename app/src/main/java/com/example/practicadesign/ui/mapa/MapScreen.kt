@@ -93,10 +93,28 @@ private fun bitmapDescriptorFromVector(
 fun MapScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
-    mapViewModel: MapViewModel = viewModel()
+    mapViewModel: MapViewModel = viewModel(),
+    initialShelterId: String? = null // ID del refugio para navegar desde otra pantalla
 ) {
     val uiState by mapViewModel.uiState.collectAsState()
     val context = LocalContext.current
+    
+    // Si se pasa un ID de refugio inicial, seleccionarlo y mostrar la ruta
+    // Esperamos a que los refugios se carguen antes de intentar seleccionar uno
+    LaunchedEffect(initialShelterId, uiState.shelters, uiState.isLoading) {
+        initialShelterId?.let { shelterId ->
+            // Solo intentar seleccionar si los refugios ya están cargados
+            if (!uiState.isLoading && uiState.shelters.isNotEmpty()) {
+                // Buscar el refugio en la lista actual
+                val shelter = uiState.shelters.find { it.id == shelterId }
+                if (shelter != null) {
+                    // Seleccionar el refugio y mostrar la ruta
+                    mapViewModel.onShelterSelected(shelter)
+                    mapViewModel.getRouteToDestination(shelter.position)
+                }
+            }
+        }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     
     // Permisos de ubicación necesarios para la app
@@ -194,7 +212,13 @@ fun MapScreen(
         ) {
             when {
                 uiState.selectedShelter != null -> {
-                    ShelterInfoContent(shelter = requireNotNull(uiState.selectedShelter))
+                    ShelterInfoContent(
+                        shelter = requireNotNull(uiState.selectedShelter),
+                        onGetDirections = { destination ->
+                            // Obtener la ruta y mostrarla en el mapa
+                            mapViewModel.getRouteToDestination(destination)
+                        }
+                    )
                 }
                 uiState.selectedRiskZone != null -> {
                     ZoneRiskInfoContent(zone = requireNotNull(uiState.selectedRiskZone))
@@ -312,6 +336,16 @@ fun MapScreen(
                     )
                 }
             }
+            
+            // Ruta de navegación (si existe)
+            uiState.route?.let { route ->
+                Polyline(
+                    points = route,
+                    color = Color(0xFF10B981), // Verde para la ruta
+                    width = 12f,
+                    geodesic = true
+                )
+            }
         }
 
         // Indicador de carga
@@ -319,6 +353,35 @@ fun MapScreen(
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center)
             )
+        }
+        
+        // Indicador de carga de ruta
+        if (uiState.isRouteLoading) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(bottom = 200.dp) // Posicionar arriba del bottom sheet
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            text = "Calculando ruta...",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
         }
 
         // UI principal sobre el mapa
@@ -423,7 +486,7 @@ fun MapScreen(
                         Text(
                             text = "Capas del mapa",
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color(0xFF050505),
+                            color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
 

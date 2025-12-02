@@ -17,10 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.practicadesign.ui.auth.AuthViewModel
 import com.example.practicadesign.ui.login.LoginScreen
 import com.example.practicadesign.ui.mapa.MapScreen
@@ -28,6 +30,8 @@ import com.example.practicadesign.ui.mapa.componentes.BottomNav
 import com.example.practicadesign.ui.profile.ProfileScreen
 import com.example.practicadesign.ui.refugios.SheltersScreen
 import com.example.practicadesign.ui.reportes.ReportScreen
+import com.example.practicadesign.ui.reportes.ReportsHomeScreen
+import com.example.practicadesign.ui.reportes.ReportsHistoryScreen
 
 /**
  * Orquestador principal de la navegación de la aplicación.
@@ -129,12 +133,35 @@ private fun AppNavHost(
         modifier = modifier
     ) {
         // --- PANTALLAS PRINCIPALES (Transición Fade) ---
+        // Ruta del mapa sin parámetros (para navegación desde BottomNav)
         composable(
             route = Screen.Mapa.route,
             enterTransition = { fadeIn(animationSpec = defaultFadeSpec) },
             exitTransition = { fadeOut(animationSpec = defaultFadeSpec) }
-        ) {
-            MapScreen(navController = navController)
+        ) { backStackEntry ->
+            MapScreen(
+                navController = navController,
+                initialShelterId = null
+            )
+        }
+        
+        // Ruta del mapa con parámetro opcional (para navegación desde otras pantallas con refugio)
+        composable(
+            route = "${Screen.Mapa.route}?${Screen.SHELTER_ID_ARG}={${Screen.SHELTER_ID_ARG}}",
+            arguments = listOf(
+                navArgument(Screen.SHELTER_ID_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            ),
+            enterTransition = { fadeIn(animationSpec = defaultFadeSpec) },
+            exitTransition = { fadeOut(animationSpec = defaultFadeSpec) }
+        ) { backStackEntry ->
+            val shelterId = backStackEntry.arguments?.getString(Screen.SHELTER_ID_ARG) ?: ""
+            MapScreen(
+                navController = navController,
+                initialShelterId = if (shelterId.isNotEmpty()) shelterId else null
+            )
         }
 
         composable(
@@ -146,17 +173,74 @@ private fun AppNavHost(
             SheltersScreen()
         }
 
+        // Pantalla de inicio de reportes
+        composable(
+            route = Screen.ReportsHome.route,
+            enterTransition = { fadeIn(animationSpec = defaultFadeSpec) },
+            exitTransition = { fadeOut(animationSpec = defaultFadeSpec) }
+        ) {
+            if (isLoggedIn) {
+                ReportsHomeScreen(
+                    onNavigateToNewReport = {
+                        navController.navigate(Screen.Report.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToContinueReport = {
+                        navController.navigate(Screen.Report.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToHistory = {
+                        navController.navigate(Screen.ReportsHistory.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            } else {
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Mapa.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            }
+        }
+
+        // Pantalla de formulario de reporte
         composable(
             route = Screen.Report.route,
             enterTransition = { fadeIn(animationSpec = defaultFadeSpec) },
             exitTransition = { fadeOut(animationSpec = defaultFadeSpec) }
         ) {
-            // Protección: Si no está autenticado, no mostrar la pantalla
-            // (La navegación ya está protegida por LaunchedEffect, pero esto es una capa adicional)
             if (isLoggedIn) {
-                ReportScreen(onClose = { navController.popBackStack() })
+                ReportScreen(
+                    onClose = { 
+                        navController.popBackStack() 
+                    }
+                )
             } else {
-                // Si por alguna razón llegamos aquí sin autenticación, redirigir a Login
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Mapa.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            }
+        }
+
+        // Pantalla de historial de reportes
+        composable(
+            route = Screen.ReportsHistory.route,
+            enterTransition = { fadeIn(animationSpec = defaultFadeSpec) },
+            exitTransition = { fadeOut(animationSpec = defaultFadeSpec) }
+        ) {
+            if (isLoggedIn) {
+                ReportsHistoryScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            } else {
                 androidx.compose.runtime.LaunchedEffect(Unit) {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Mapa.route) { inclusive = false }

@@ -45,6 +45,7 @@ import com.composables.icons.lucide.House
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.TriangleAlert
+import com.example.practicadesign.ui.theme.*
 
 /**
  * Modelo de datos para un resultado de búsqueda.
@@ -73,6 +74,7 @@ data class SearchResult(
 @Preview(showBackground = true, name = "Search Overlay Preview")
 @Composable
 fun PreviewSearchOverlay() {
+    PracticaDesignTheme(darkTheme = true) {
     val sampleResults = listOf(
         SearchResult(
             id = "shelter_1",
@@ -80,7 +82,7 @@ fun PreviewSearchOverlay() {
             name = "Refugio Deportivo Benito Juárez",
             address = "Av. de los Insurgentes Sur 300",
             icon = Lucide.House,
-            iconColor = Color(0xFF0EA5E9)
+            iconColor = infoColor()
         ),
         SearchResult(
             id = "zone_1",
@@ -88,7 +90,7 @@ fun PreviewSearchOverlay() {
             name = "Peligro Alto",
             address = "Colonia Centro, cerca del río",
             icon = Lucide.TriangleAlert,
-            iconColor = Color(0xFFEF4444)
+            iconColor = riskHighColor()
         )
     )
 
@@ -99,6 +101,7 @@ fun PreviewSearchOverlay() {
         onDismiss = {},
         onItemSelected = {}
     )
+}
 }
 
 /**
@@ -146,6 +149,7 @@ fun SearchResultItem(result: SearchResult, onClick: () -> Unit) {
             Text(
                 text = result.name,
                 style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

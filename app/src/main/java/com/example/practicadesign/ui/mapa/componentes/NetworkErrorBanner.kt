@@ -16,7 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.practicadesign.ui.theme.PracticaDesignTheme
 
 /**
  * Banner que muestra un mensaje de error cuando no hay conexión al servidor del mapa.
@@ -27,6 +29,27 @@ import androidx.compose.ui.unit.dp
  * @param message Mensaje de error a mostrar. Si es null, el banner no se muestra.
  * @param modifier Modificador de Compose para personalizar el layout
  */
+@Preview(showBackground = true, name = "Network Error Banner - Claro")
+@Composable
+private fun PreviewNetworkErrorBannerLight() {
+    PracticaDesignTheme(darkTheme = false) {
+        NetworkErrorBanner(
+            message = "No hay conexión. No se pudieron cargar los datos del mapa.",
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Network Error Banner - Oscuro")
+@Composable
+private fun PreviewNetworkErrorBannerDark() {
+    PracticaDesignTheme(darkTheme = true) {
+        NetworkErrorBanner(
+            message = "No hay conexión. Usando datos en caché.",
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
 @Composable
 fun NetworkErrorBanner(
     message: String?,

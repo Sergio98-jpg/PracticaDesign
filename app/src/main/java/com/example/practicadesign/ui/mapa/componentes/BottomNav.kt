@@ -85,6 +85,12 @@ fun BottomNav(
     // Obtiene la ruta actual para saber qué ítem está activo
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    
+    // Función helper para verificar si estamos en la ruta del mapa
+    // (la ruta puede ser "mapa_screen" o "mapa_screen?shelterId=...")
+    fun isMapRoute(route: String?): Boolean {
+        return route?.startsWith(Screen.Mapa.route) == true
+    }
 
     Row(
         modifier = modifier
@@ -97,29 +103,36 @@ fun BottomNav(
     ) {
         // Ítem del Mapa
         BottomNavItem(
-            active = currentRoute == Screen.Mapa.route,
+            active = isMapRoute(currentRoute),
             label = "Mapa",
             icon = Lucide.Map,
             onClick = {
-                navController.navigate(Screen.Mapa.route) {
-                    launchSingleTop = true
-                    restoreState = true
+                // Solo navegar si no estamos ya en la pantalla del mapa
+                // Esto evita recrear el ViewModel y perder el estado
+                if (!isMapRoute(currentRoute)) {
+                    navController.navigate(Screen.Mapa.route) {
+                        launchSingleTop = true
+                        restoreState = true
+                        // Limpiar el back stack hasta el mapa si hay otras pantallas encima
+                        popUpTo(Screen.Mapa.route) { inclusive = false }
+                    }
                 }
+                // Si ya estamos en el mapa, no hacer nada (evita recargar)
             }
         )
 
-        // Ítem de Alertas (solo para usuarios logueados)
-        if (userRole != null) {
-            BottomNavItem(
-                active = false,
-                label = "Alertas",
-                icon = Lucide.CircleAlert,
-                badge = "1",
-                onClick = {
-                    // TODO: Implementar navegación a pantalla de alertas cuando esté disponible
-                }
-            )
-        }
+        // // Ítem de Alertas (solo para usuarios logueados)
+        // if (userRole != null) {
+        //     BottomNavItem(
+        //         active = false,
+        //         label = "Alertas",
+        //         icon = Lucide.CircleAlert,
+        //         badge = "1",
+        //         onClick = {
+        //             // TODO: Implementar navegación a pantalla de alertas cuando esté disponible
+        //         }
+        //     )
+        // }
 
         // Ítem de Refugios
         BottomNavItem(
@@ -136,15 +149,20 @@ fun BottomNav(
 
         // Ítem de Reporte
         BottomNavItem(
-            active = false,
+            active = currentRoute == Screen.ReportsHome.route || 
+                     currentRoute == Screen.Report.route || 
+                     currentRoute == Screen.ReportsHistory.route,
             label = "Reporte",
             icon = Lucide.Pencil,
             onClick = {
-                // Si no hay usuario, va al Login. Si hay, va a la pantalla de crear reporte
+                // Si no hay usuario, va al Login. Si hay, va a la pantalla de inicio de reportes
                 if (userRole == null) {
                     navController.navigate(Screen.Login.route)
                 } else {
-                    navController.navigate(Screen.Report.route)
+                    navController.navigate(Screen.ReportsHome.route) {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 }
             }
         )

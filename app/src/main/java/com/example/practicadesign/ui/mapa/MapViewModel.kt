@@ -14,6 +14,7 @@ import androidx.lifecycle.viewModelScope
 import com.composables.icons.lucide.House
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.TriangleAlert
+import com.example.practicadesign.data.DirectionsRepository
 import com.example.practicadesign.data.FloodedStreet
 import com.example.practicadesign.data.MapRepository
 import com.example.practicadesign.data.RiskZone
@@ -61,7 +62,9 @@ data class MapUiState(
     val currentLocationName: String = "Cargando...",
     val isSearching: Boolean = false,
     val searchQuery: TextFieldValue = TextFieldValue(""),
-    val searchResults: List<SearchResult> = emptyList()
+    val searchResults: List<SearchResult> = emptyList(),
+    val route: List<LatLng>? = null, // Ruta de navegación actual
+    val isRouteLoading: Boolean = false // Indica si se está cargando una ruta
 )
 
 /**
@@ -89,6 +92,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     val uiState = _uiState.asStateFlow()
     // Pasa el contexto de la aplicación para habilitar el cache local
     private val mapRepository = MapRepository(getApplication())
+    private val directionsRepository = DirectionsRepository(getApplication())
     private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(getApplication())
     private val geocoder = Geocoder(getApplication(), Locale.getDefault())
 
@@ -227,25 +231,25 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 val sheltersDeferred = async {
                     var sheltersResult = emptyList<Shelter>()
                     var errorOccurred = false
+                    var emissionCount = 0
                     
                     try {
-                        // Intentamos obtener los datos
-                        // Usamos take(1) para obtener solo el primer valor, pero catch capturará errores
+                        // El Repository emite primero el cache (si existe), luego intenta obtener datos del backend
+                        // Si el backend funciona, emite los datos frescos (segunda emisión)
+                        // Si el backend falla, lanza una excepción pero ya emitió el cache
                         mapRepository.getShelters()
                             .catch { e ->
                                 Log.e("MapViewModel", "Excepción al cargar refugios", e)
                                 hadNetworkError = true
                                 errorOccurred = true
-                                // Si el Flow falla, emitimos una lista vacía para que take(1) pueda continuar
-                                emit(emptyList())
+                                // Si el Flow falla, no emitimos nada, el error ya fue propagado
+                                // El último valor recopilado (si existe) es del cache
                             }
-                            .take(1)
                             .collect { shelters ->
+                                emissionCount++
                                 sheltersResult = shelters
-                                // Si hay datos, significa que hay cache (porque el Repository emite cache primero)
-                                if (shelters.isNotEmpty()) {
-                                    sheltersHadCache = true
-                                }
+                                // Si recibimos más de un valor, significa que el backend funcionó
+                                // (primer valor = cache, segundo valor = datos frescos del backend)
                             }
                     } catch (e: Exception) {
                         Log.e("MapViewModel", "Excepción al cargar refugios (catch externo)", e)
@@ -253,9 +257,13 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                         errorOccurred = true
                     }
                     
-                    // Si hubo error pero hay datos, significa que hay cache
-                    if (errorOccurred && sheltersResult.isNotEmpty()) {
+                    // SOLO si hubo error Y hay datos Y solo recibimos 1 emisión (cache), significa que estamos usando cache
+                    // Si recibimos 2 emisiones, el backend funcionó (cache + datos frescos)
+                    if (errorOccurred && sheltersResult.isNotEmpty() && emissionCount == 1) {
                         sheltersHadCache = true
+                        Log.d("MapViewModel", "Refugios cargados desde cache (error de red detectado, 1 emisión)")
+                    } else if (!errorOccurred && sheltersResult.isNotEmpty()) {
+                        Log.d("MapViewModel", "Refugios cargados desde backend exitosamente ($emissionCount emisiones)")
                     }
                     
                     sheltersResult
@@ -264,24 +272,25 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 val zonesDeferred = async {
                     var zonesResult = emptyList<RiskZone>()
                     var errorOccurred = false
+                    var emissionCount = 0
                     
                     try {
-                        // Intentamos obtener los datos
+                        // El Repository emite primero el cache (si existe), luego intenta obtener datos del backend
+                        // Si el backend funciona, emite los datos frescos (segunda emisión)
+                        // Si el backend falla, lanza una excepción pero ya emitió el cache
                         mapRepository.getRiskZones()
                             .catch { e ->
                                 Log.e("MapViewModel", "Excepción al cargar zonas de riesgo", e)
                                 hadNetworkError = true
                                 errorOccurred = true
-                                // Si el Flow falla, emitimos una lista vacía para que take(1) pueda continuar
-                                emit(emptyList())
+                                // Si el Flow falla, no emitimos nada, el error ya fue propagado
+                                // El último valor recopilado (si existe) es del cache
                             }
-                            .take(1)
                             .collect { zones ->
+                                emissionCount++
                                 zonesResult = zones
-                                // Si hay datos, significa que hay cache (porque el Repository emite cache primero)
-                                if (zones.isNotEmpty()) {
-                                    zonesHadCache = true
-                                }
+                                // Si recibimos más de un valor, significa que el backend funcionó
+                                // (primer valor = cache, segundo valor = datos frescos del backend)
                             }
                     } catch (e: Exception) {
                         Log.e("MapViewModel", "Excepción al cargar zonas de riesgo (catch externo)", e)
@@ -289,9 +298,13 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                         errorOccurred = true
                     }
                     
-                    // Si hubo error pero hay datos, significa que hay cache
-                    if (errorOccurred && zonesResult.isNotEmpty()) {
+                    // SOLO si hubo error Y hay datos Y solo recibimos 1 emisión (cache), significa que estamos usando cache
+                    // Si recibimos 2 emisiones, el backend funcionó (cache + datos frescos)
+                    if (errorOccurred && zonesResult.isNotEmpty() && emissionCount == 1) {
                         zonesHadCache = true
+                        Log.d("MapViewModel", "Zonas de riesgo cargadas desde cache (error de red detectado, 1 emisión)")
+                    } else if (!errorOccurred && zonesResult.isNotEmpty()) {
+                        Log.d("MapViewModel", "Zonas de riesgo cargadas desde backend exitosamente ($emissionCount emisiones)")
                     }
                     
                     zonesResult
@@ -364,10 +377,16 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Maneja el cierre del bottom sheet.
-     * Limpia las selecciones de refugio y zona de riesgo.
+     * Limpia las selecciones de refugio y zona de riesgo, y también la ruta.
      */
     fun onBottomSheetDismissed() {
-        _uiState.update { it.copy(selectedShelter = null, selectedRiskZone = null) }
+        _uiState.update { 
+            it.copy(
+                selectedShelter = null, 
+                selectedRiskZone = null,
+                route = null // Limpiar la ruta al cerrar el bottom sheet
+            ) 
+        }
     }
 
     /**
@@ -627,5 +646,51 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
         // Actualiza el estado con la lista filtrada
         _uiState.update { it.copy(searchResults = filteredList) }
+    }
+    
+    // ==================== NAVEGACIÓN ====================
+    
+    /**
+     * Obtiene la ruta de navegación desde la ubicación del usuario hasta un destino.
+     * 
+     * @param destination Coordenadas del destino
+     */
+    fun getRouteToDestination(destination: LatLng) {
+        val currentLocation = _uiState.value.userLocation
+        if (currentLocation == null) {
+            Log.w("MapViewModel", "No hay ubicación del usuario para calcular la ruta")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(isRouteLoading = true, route = null) }
+                
+                val route = directionsRepository.getRoute(currentLocation, destination)
+                
+                if (route != null) {
+                    _uiState.update { 
+                        it.copy(
+                            route = route,
+                            isRouteLoading = false
+                        ) 
+                    }
+                    Log.d("MapViewModel", "Ruta obtenida exitosamente: ${route.size} puntos")
+                } else {
+                    _uiState.update { it.copy(isRouteLoading = false) }
+                    Log.w("MapViewModel", "No se pudo obtener la ruta")
+                }
+            } catch (e: Exception) {
+                Log.e("MapViewModel", "Error al obtener la ruta", e)
+                _uiState.update { it.copy(isRouteLoading = false) }
+            }
+        }
+    }
+    
+    /**
+     * Limpia la ruta actual del mapa.
+     */
+    fun clearRoute() {
+        _uiState.update { it.copy(route = null) }
     }
 }

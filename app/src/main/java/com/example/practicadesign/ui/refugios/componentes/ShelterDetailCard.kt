@@ -32,7 +32,7 @@ import com.composables.icons.lucide.CircleX
 import com.composables.icons.lucide.Lucide
 import com.example.practicadesign.data.Shelter
 import com.example.practicadesign.ui.mapa.MapScreen
-import com.google.android.gms.maps.model.LatLng
+import com.example.practicadesign.ui.navegacion.Screen
 
 @Preview(showBackground = true, name = "Tarjeta de Detalle de Refugio")
 @Composable
@@ -90,8 +90,10 @@ private fun ShelterDetailCardPClosereview() {
 @Composable
 fun ShelterDetailCard(
     shelter: Shelter,
+    navController: NavController? = null, // NavController opcional (null solo en previews)
     onClose: () -> Unit
 ) {
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -123,8 +125,16 @@ fun ShelterDetailCard(
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
-                    onClick = { /* TODO: abrir mapa */ },
+                    onClick = {
+                        // Navegar al mapa con el refugio seleccionado para mostrar la ruta
+                        navController?.navigate(Screen.Mapa.withShelterId(shelter.id)) {
+                            // Limpiar el back stack hasta el mapa para evitar navegación circular
+                            popUpTo(Screen.Mapa.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
                     modifier = Modifier.weight(1f),
+                    enabled = navController != null, // Deshabilitar si no hay navController (solo en previews)
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0891B2))
                 ) {
                     Text("Cómo llegar", color = Color.White)
